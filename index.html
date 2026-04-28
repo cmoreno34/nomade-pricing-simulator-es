@@ -1,0 +1,1576 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nomade Vans — Simulador de precios</title>
+<meta name="description" content="Simulador de precios de Nomade Vans — DAP, pricing basado en competencia y factores psicológicos." />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js" crossorigin></script>
+<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+  :root {
+    --c-bg: #f6f7fb;
+    --c-card: #ffffff;
+    --c-border: #e5e7eb;
+    --c-text: #0f172a;
+    --c-muted: #64748b;
+    --c-blue: #2563eb;
+    --c-blue-50: #eff6ff;
+    --c-orange: #f97316;
+    --c-orange-50: #fff7ed;
+    --c-green: #059669;
+    --c-purple: #7c3aed;
+    --c-red: #dc2626;
+    --shadow: 0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--c-bg); color: var(--c-text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .hero { background: linear-gradient(90deg, #2563eb 0%, #f97316 100%); color: #fff; padding: 22px 26px; border-radius: 14px; box-shadow: var(--shadow); margin-bottom: 20px; }
+  .hero h1 { margin: 0 0 4px; font-size: 1.55rem; }
+  .hero p { margin: 0; opacity: .92; font-size: .92rem; }
+  .card { background: var(--c-card); border: 1px solid var(--c-border); border-radius: 12px; padding: 18px 20px; margin-bottom: 18px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 10px; font-size: 1.1rem; }
+  .card h3 { margin: 0 0 8px; font-size: .98rem; }
+  .card p { margin: 0 0 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+  @media (max-width: 820px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .wrap { padding: 14px; }
+  }
+  .btn { background: #f1f5f9; color: var(--c-text); border: 1px solid var(--c-border); border-radius: 8px; padding: 9px 16px; font-size: .92rem; cursor: pointer; transition: all .15s; font-weight: 500; }
+  .btn:hover { background: #e2e8f0; }
+  .btn[disabled] { opacity: .5; cursor: not-allowed; }
+  .btn.primary { background: var(--c-blue); color: #fff; border-color: var(--c-blue); }
+  .btn.primary:hover { background: #1d4ed8; }
+  .btn.orange { background: var(--c-orange); color: #fff; border-color: var(--c-orange); }
+  .btn.orange:hover { background: #ea580c; }
+  .btn.green { background: var(--c-green); color: #fff; border-color: var(--c-green); }
+  .btn.green:hover { background: #047857; }
+  .pill { padding: 7px 12px; border-radius: 999px; background: #f1f5f9; font-size: .85rem; border: 1px solid var(--c-border); cursor: pointer; }
+  .pill.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+  label { font-size: .85rem; color: var(--c-muted); display: block; margin-bottom: 4px; }
+  input[type="number"], input[type="text"], select, textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--c-border); border-radius: 8px; font-size: .92rem; background: #fff; font-family: inherit;
+  }
+  .kpi { background: #f8fafc; border: 1px solid var(--c-border); border-radius: 10px; padding: 12px; }
+  .kpi .label { font-size: .78rem; color: var(--c-muted); text-transform: uppercase; letter-spacing: .03em; }
+  .kpi .value { font-size: 1.25rem; font-weight: 700; margin-top: 4px; }
+  .kpi .value.green { color: var(--c-green); }
+  .kpi .value.blue { color: var(--c-blue); }
+  .kpi .value.orange { color: var(--c-orange); }
+  .kpi .value.red { color: var(--c-red); }
+  .tab-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid var(--c-border); padding-bottom: 8px; }
+  .tab { padding: 9px 16px; font-size: .92rem; font-weight: 500; background: transparent; border: none; cursor: pointer; border-radius: 8px 8px 0 0; color: var(--c-muted); }
+  .tab.active { background: var(--c-blue); color: #fff; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; font-size: .82rem; background: #f1f5f9; border: 1px solid var(--c-border); cursor: pointer; user-select: none; }
+  .chip input { margin: 0; }
+  .chip.active { background: var(--c-blue-50); border-color: var(--c-blue); color: var(--c-blue); }
+  .chip.active-orange { background: var(--c-orange-50); border-color: var(--c-orange); color: var(--c-orange); }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--c-border); text-align: left; }
+  th { background: #f8fafc; font-weight: 600; color: var(--c-muted); text-transform: uppercase; font-size: .76rem; letter-spacing: .03em; }
+  .note { font-size: .88rem; color: var(--c-muted); line-height: 1.55; }
+  .explain { font-size: .88rem; color: var(--c-text); line-height: 1.55; background: #f8fafc; border-left: 3px solid var(--c-blue); padding: 10px 14px; border-radius: 6px; margin: 10px 0; }
+  .explain.orange { border-left-color: var(--c-orange); background: #fff7ed; }
+  .explain.green  { border-left-color: var(--c-green); background: #ecfdf5; }
+  .explain.purple { border-left-color: var(--c-purple); background: #f5f3ff; }
+  .explain strong { color: var(--c-text); }
+  .step-list { counter-reset: step; list-style: none; padding-left: 0; margin: 0; }
+  .step-list li { counter-increment: step; padding: 8px 0 8px 44px; position: relative; font-size: .92rem; line-height: 1.5; }
+  .step-list li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: 8px;
+    width: 28px; height: 28px; border-radius: 999px;
+    background: var(--c-blue); color: #fff; text-align: center; line-height: 28px; font-weight: 700; font-size: .85rem;
+  }
+  .box-soft { background: #f8fafc; border-radius: 10px; padding: 12px; border: 1px dashed var(--c-border); }
+  details { background: #f8fafc; border-radius: 10px; padding: 10px 14px; margin: 8px 0; border: 1px solid var(--c-border); }
+  details summary { cursor: pointer; font-weight: 600; font-size: .92rem; }
+  details[open] summary { margin-bottom: 10px; }
+  .hint { font-size: .8rem; color: var(--c-muted); margin-top: 2px; }
+  .offscreen { position: absolute; left: -99999px; top: 0; width: 860px; pointer-events: none; }
+  .footer { text-align: center; color: var(--c-muted); padding: 18px; font-size: .82rem; }
+  .status { font-size: .85rem; padding: 8px 12px; border-radius: 8px; background: #eff6ff; color: #1e40af; margin-top: 8px; display: inline-block; }
+  .status.err { background: #fee2e2; color: #991b1b; }
+  .status.ok  { background: #dcfce7; color: #166534; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-type="module">
+const { useState, useMemo, useEffect, useRef } = React;
+const {
+  LineChart, Line, BarChart, Bar, ComposedChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  Cell, ReferenceLine, ScatterChart, Scatter, LabelList
+} = Recharts;
+
+/* Perfiles de los players — puntuaciones de atributos 0-10 usadas en los mapas de posicionamiento.
+   El tamaño de los cuatro players es pequeño-medio (nicho español de alquiler de furgonetas):
+   plantilla similar, flota similar. El conjunto competitivo NO es David-vs-Goliat —
+   es un grupo de pares donde el reconocimiento de marca es el principal driver
+   de la brecha de precios que el alumnado debe explicar. */
+const PROFILES = {
+  nomade:       { name: 'Nomade',        brand: 3, est: 2, sustain:10, design: 9, size: 'pequeño (< 30 furgonetas)',       color: '#f97316' },
+  furtherVAN:   { name: 'Further VAN',   brand: 8, est: 8, sustain: 5, design: 7, size: 'pequeño-medio (~ 50 furgonetas)', color: '#3b82f6' },
+  peopleCamper: { name: 'People Camper', brand: 9, est: 9, sustain: 4, design: 6, size: 'pequeño-medio (~ 60 furgonetas)', color: '#8b5cf6' },
+  oceanVans:    { name: 'Ocean Vans',    brand: 9, est: 9, sustain: 6, design: 7, size: 'pequeño-medio (~ 55 furgonetas)', color: '#10b981' }
+};
+
+/* ============================================================
+   DATOS
+   ============================================================ */
+const SURVEY = {
+  day: {
+    standard: [
+      { price: 50, responses: 17 },{ price: 60, responses: 14 },{ price: 70, responses: 10 },
+      { price: 80, responses: 16 },{ price: 90, responses: 12 },{ price: 100, responses: 19 },
+      { price: 110, responses: 2 },{ price: 120, responses: 4 },{ price: 130, responses: 1 }
+    ],
+    premium: [
+      { price: 60, responses: 10 },{ price: 70, responses: 5 },{ price: 80, responses: 12 },
+      { price: 90, responses: 8 },{ price: 100, responses: 14 },{ price: 110, responses: 12 },
+      { price: 120, responses: 19 },{ price: 130, responses: 5 },{ price: 140, responses: 3 },
+      { price: 150, responses: 4 },{ price: 160, responses: 1 },{ price: 180, responses: 1 },{ price: 200, responses: 1 }
+    ]
+  },
+  weekend: {
+    standard: [
+      { price: 80, responses: 12 },{ price: 100, responses: 7 },{ price: 120, responses: 18 },
+      { price: 140, responses: 13 },{ price: 160, responses: 11 },{ price: 180, responses: 15 },
+      { price: 200, responses: 11 },{ price: 220, responses: 4 },{ price: 240, responses: 3 },{ price: 300, responses: 1 }
+    ],
+    premium: [
+      { price: 120, responses: 10 },{ price: 140, responses: 6 },{ price: 160, responses: 13 },
+      { price: 180, responses: 8 },{ price: 200, responses: 22 },{ price: 220, responses: 2 },
+      { price: 240, responses: 18 },{ price: 260, responses: 4 },{ price: 280, responses: 2 },
+      { price: 300, responses: 6 },{ price: 320, responses: 2 },{ price: 360, responses: 1 },{ price: 400, responses: 1 }
+    ]
+  },
+  week: {
+    standard: [
+      { price: 240, responses: 14 },{ price: 300, responses: 10 },{ price: 360, responses: 10 },
+      { price: 420, responses: 15 },{ price: 480, responses: 15 },{ price: 540, responses: 8 },
+      { price: 600, responses: 10 },{ price: 660, responses: 3 },{ price: 720, responses: 6 },
+      { price: 840, responses: 2 },{ price: 900, responses: 2 }
+    ],
+    premium: [
+      { price: 360, responses: 9 },{ price: 420, responses: 8 },{ price: 480, responses: 17 },
+      { price: 540, responses: 14 },{ price: 600, responses: 20 },{ price: 660, responses: 4 },
+      { price: 720, responses: 11 },{ price: 780, responses: 3 },{ price: 840, responses: 3 },
+      { price: 900, responses: 3 },{ price: 960, responses: 1 },{ price: 1080, responses: 1 },{ price: 1200, responses: 1 }
+    ]
+  }
+};
+
+/* Los competidores ofrecen UNA SOLA gama (sin desdoble Std/Prem) y publican tarifas DIARIAS solo.
+   Los valores de fin de semana / semana son equivalentes diarios teóricos proyectados a partir
+   de la tarifa diaria (fin de semana ≈ −5 % · semana ≈ −30 %). Aparecen en el simulador como
+   referencia, no como dato observado. La estructura mantiene un "price" por (periodo, competidor). */
+const COMPETITORS_DEFAULT = {
+  day:     { furtherVAN: { price: 85 }, peopleCamper: { price: 105 }, oceanVans: { price: 98 } },
+  weekend: { furtherVAN: { price: 80 }, peopleCamper: { price: 100 }, oceanVans: { price: 93 } },
+  week:    { furtherVAN: { price: 60 }, peopleCamper: { price: 75  }, oceanVans: { price: 68 } }
+};
+/* Compatibilidad con código antiguo — algunos paths leían .standard / .premium. Ambos mapean
+   a la misma tarifa única. */
+const compPrice = (obj) => (obj && typeof obj === 'object')
+  ? (obj.price !== undefined ? obj.price : (obj.standard !== undefined ? obj.standard : 0))
+  : (obj || 0);
+
+const OUR_DEFAULT = {
+  day:     { standard: 80, premium: 100 },
+  weekend: { standard: 75, premium: 95  },
+  week:    { standard: 60, premium: 77  }
+};
+
+const COSTS = {
+  standard: { VC: 30, FC: 69750, D: 5000 },
+  premium:  { VC: 30, FC: 77750, D: 5000 }
+};
+const DEMAND_MULT = { day: 1.0, weekend: 0.365, week: 0.0743 };
+
+const PERIODS = [
+  { k: 'day',     label: 'Diario' },
+  { k: 'weekend', label: 'Fin de semana (por día)' },
+  { k: 'week',    label: 'Semanal (por día)' }
+];
+const COMP_META = [
+  { k: 'furtherVAN',   name: 'Further VAN',   color: '#3b82f6' },
+  { k: 'peopleCamper', name: 'People Camper', color: '#8b5cf6' },
+  { k: 'oceanVans',    name: 'Ocean Vans',    color: '#10b981' }
+];
+
+const QUESTIONS = [
+  { id: 'Q1',  text: 'Género', type: 'opción múltiple', options: 'Hombre, Mujer, Otro' },
+  { id: 'Q2',  text: 'Rango de edad', type: 'opción múltiple', options: '<20, 20-30, 30-40, 40-50, >50' },
+  { id: 'Q3',  text: 'Estado civil', type: 'opción múltiple', options: 'Soltero/a, Casado/a, Divorciado/a, Viudo/a' },
+  { id: 'Q4',  text: 'Nivel de estudios', type: 'opción múltiple', options: 'Primaria, Secundaria, Universidad, Máster/Doctorado' },
+  { id: 'Q5',  text: 'Situación laboral', type: 'opción múltiple', options: 'Empleado/a, Autónomo/a, Desempleado/a, Jubilado/a, Estudiante' },
+  { id: 'Q6',  text: 'Actividades de ocio', type: 'multi-selección', options: 'Viajar, Leer, Deporte, Aventura, Familia, Otros' },
+  { id: 'Q7',  text: 'Días de vacaciones al año', type: 'opción múltiple', options: '<3, 3-5, 5-7, >7' },
+  { id: 'Q8',  text: 'DAP máxima — Estándar / día (€)', type: 'numérica/tramo', options: 'Tramos €50–€130' },
+  { id: 'Q9',  text: 'DAP máxima — Estándar / fin de semana 2 noches (€)', type: 'numérica/tramo', options: 'Tramos €80–€300' },
+  { id: 'Q10', text: 'DAP máxima — Estándar / semana 6 noches (€)', type: 'numérica/tramo', options: 'Tramos €240–€900' },
+  { id: 'Q11', text: 'DAP máxima — Premium / día (€)', type: 'numérica/tramo', options: 'Tramos €60–€200' },
+  { id: 'Q12', text: 'DAP máxima — Premium / fin de semana 2 noches (€)', type: 'numérica/tramo', options: 'Tramos €120–€400' },
+  { id: 'Q13', text: 'DAP máxima — Premium / semana 6 noches (€)', type: 'numérica/tramo', options: 'Tramos €360–€1200' }
+];
+
+/* ============================================================
+   MATEMÁTICAS
+   ============================================================ */
+function interpolateDemand(surveyData, price, demandPotential) {
+  const sorted = [...surveyData].sort((a,b)=>a.price-b.price);
+  const total = sorted.reduce((s,d)=>s+d.responses,0);
+  let lo = 0, hi = sorted.length - 1;
+  for (let i = 0; i < sorted.length; i++) {
+    if (sorted[i].price <= price) lo = i;
+    if (sorted[i].price >= price && hi === sorted.length - 1) hi = i;
+  }
+  if (lo === hi) {
+    let cum = 0; for (let i = lo; i < sorted.length; i++) cum += sorted[i].responses;
+    return demandPotential * (cum / total);
+  }
+  const p1 = sorted[lo], p2 = sorted[hi];
+  let c1 = 0, c2 = 0;
+  for (let i = lo; i < sorted.length; i++) c1 += sorted[i].responses;
+  for (let i = hi; i < sorted.length; i++) c2 += sorted[i].responses;
+  const f1 = c1/total, f2 = c2/total;
+  const t = (price - p1.price) / (p2.price - p1.price);
+  return demandPotential * (f1 + t * (f2 - f1));
+}
+
+function profitCurve(data, costs, period) {
+  const min = Math.min(...data.map(d=>d.price));
+  const max = Math.max(...data.map(d=>d.price));
+  const step = (max-min)/60;
+  const D0 = costs.D * DEMAND_MULT[period];
+  const out = [];
+  for (let p = min; p <= max; p += step) {
+    const dem = interpolateDemand(data, p, D0);
+    const rev = p * dem;
+    const vc = costs.VC * dem;
+    const prof = rev - vc - costs.FC;
+    out.push({ price: Math.round(p*100)/100, demand: Math.round(dem), revenue: Math.round(rev), profit: Math.round(prof) });
+  }
+  return out;
+}
+const findPeak = curve => curve.reduce((m,c)=>c.profit>m.profit?c:m, curve[0]);
+
+function wtpCumulative(data) {
+  const sorted = [...data].sort((a,b)=>a.price-b.price);
+  const total = sorted.reduce((s,d)=>s+d.responses,0);
+  let cum = 0;
+  return sorted.map(d => {
+    cum += d.responses;
+    return { price: d.price, responses: d.responses, pctAbove: (total - cum + d.responses)/total*100 };
+  });
+}
+
+const prospectValue = (x, a=0.88, l=2.25) => x >= 0 ? Math.pow(x,a) : -l*Math.pow(-x,a);
+
+function pctAccepting(data, p) {
+  const total = data.reduce((s,d)=>s+d.responses,0);
+  const accept = data.filter(d => d.price >= p).reduce((s,d)=>s+d.responses,0);
+  return (accept/total)*100;
+}
+
+/* ============================================================
+   ÁTOMOS DE UI
+   ============================================================ */
+const Pill = ({active, onClick, children}) => (
+  <button className={active ? 'pill active' : 'pill'} onClick={onClick}>{children}</button>
+);
+const KPI = ({label, value, color}) => (
+  <div className="kpi">
+    <div className="label">{label}</div>
+    <div className={`value ${color||''}`}>{value}</div>
+  </div>
+);
+const GraphPicker = ({options, selected, setSelected}) => (
+  <div className="row" style={{gap:8}}>
+    {options.map(o => {
+      const on = selected.includes(o.k);
+      return (
+        <label key={o.k} className={`chip ${on ? (o.group==='psych' ? 'active-orange' : 'active') : ''}`} onClick={() => {
+          if (on) setSelected(selected.filter(x=>x!==o.k));
+          else setSelected([...selected, o.k]);
+        }}>
+          <input type="checkbox" checked={on} readOnly /> {o.label}
+        </label>
+      );
+    })}
+  </div>
+);
+
+/* ============================================================
+   APP
+   ============================================================ */
+function App() {
+  const [period, setPeriod] = useState('day');
+  const [version, setVersion] = useState('standard');
+  const [competitors, setCompetitors] = useState(COMPETITORS_DEFAULT);
+  const [ourPrices, setOurPrices] = useState(OUR_DEFAULT);
+  const [tab, setTab] = useState('guide');
+
+  const [overviewGraphs, setOverviewGraphs] = useState(['wtp','profit','competitive','posBrand','posSust','posDesign']);
+  const [psychGraphs, setPsychGraphs] = useState(['anchor','charm','prospect','reference']);
+
+  const [charmTest, setCharmTest] = useState({ round: 80, charm: 79 });
+  const [anchorTier, setAnchorTier] = useState({ basic: 60, mid: 80, premium: 100 });
+  const [refPrice, setRefPrice] = useState(85);
+  const [prospectFromTo, setProspectFromTo] = useState({ from: 80, to: 90 });
+  const [positionNote, setPositionNote] = useState('');
+  const [psychSynced, setPsychSynced] = useState(0); /* incrementar fuerza el reset desde la posición */
+
+  /* Entregables del caso — 4 preguntas formales de Nomade v3.0 */
+  const [caseAnswers, setCaseAnswers] = useState({ q1: '', q2: '', q3: '', q4: '' });
+  const CASE_QUESTIONS = [
+    { id: 'Q1',
+      title: 'Análisis competitivo y posicionamiento',
+      prompt: 'Con los datos aportados y la herramienta: (a) realiza supuestos sobre la estructura de costes de los competidores y su diferenciación de marca; (b) recuerda que NOMADE es NUEVO mientras los demás están bien establecidos; (c) para cada competidor, evalúa si su precio más alto se debe a (i) costes operativos más altos, o (ii) mayor diferenciación (reconocimiento de marca, calidad, prestaciones); (d) construye un mapa de posicionamiento de Nomade frente a los competidores en los atributos clave.',
+      hint: 'GUÍA DE RESPUESTA — (a) Los competidores están establecidos → flota amortizada, escala en compras, canales con marca ⇒ MENOR coste variable por alquiler pero MAYORES costes fijos de marketing y marca. Nomade es nuevo → coste variable SIMILAR (la eficiencia del diseño sostenible compensa la falta de escala), MAYOR coste fijo por unidad (flota reducida). (b) Su prima de precio se explica sobre todo por RECONOCIMIENTO DE MARCA — no por prestaciones superiores. (c) Puntuaciones del mapa de posicionamiento: Nomade (Establecimiento 2/10, Marca 3/10, Sostenibilidad 10/10, Diseño 9/10), Further VAN (8/8/5/7), People Camper (9/9/4/6), Ocean Vans (9/9/6/7). Conclusión: Nomade está OBJETIVAMENTE MÁS DIFERENCIADO pero PERCIBIDO COMO MENOS (marca débil). Usa el gráfico combinado "Std+Prem × Día/Fin de semana/Semana" para visualizar la brecha.'
+    },
+    { id: 'Q2',
+      title: 'Aplica el marco estratégico de los 4 escenarios',
+      prompt: 'Usando el marco de 4 escenarios de la nota técnica: (a) identifica qué escenario aplica a Nomade para cada versión (Estándar / Premium); (b) ¿es Popt > o < los precios de los competidores? (c) ¿la razón es la estructura de costes o la diferenciación? (d) según el escenario ¿debe Nomade aplicar penetración (−) / penetración agresiva (−−), descremado (+) / descremado rápido-agresivo (++) o no hacer nada? (e) justifícalo con teoría competitiva y el análisis de beneficios sobre la DAP.',
+      hint: 'GUÍA DE RESPUESTA — Óptimos DAP: Std €80 · Prem €100. Rango competencia Std €85–€105, Prem (asumido) €95–€129 → Popt < C. Estructura de costes similar (ligeramente mejor gracias a la eficiencia del diseño sostenible); diferenciación OBJETIVAMENTE MAYOR pero RECONOCIMIENTO DE MARCA BAJO. Es el escenario b.3: Popt < C porque se percibe menos diferenciado pese a la superioridad real. RECOMENDACIÓN → DESCREMADO (+) en Premium (construir anclaje de marca) y PENETRACIÓN suave (−) en Estándar solo el primer año para sembrar prueba. Nunca penetración agresiva (−−) — quema margen sin cerrar la brecha de marca. Usa la pestaña Curva de beneficio para leer el beneficio en movimientos de +€5/+€10 antes de decidir.'
+    },
+    { id: 'Q3',
+      title: 'Estrategia de precios fin de semana / semana',
+      prompt: 'Los datos de competencia son SOLO diarios. (a) Empieza por las decisiones de precio diario (óptimo DAP + posicionamiento competitivo); (b) asume estándares de la industria para fin de semana (5–10 % de descuento por día) y semana (20–30 % de descuento total) para estimar las tarifas de competencia; (c) propón los precios de fin de semana / semana de Nomade; (d) usa anclaje (diario × 7 vs precio semanal); (e) construye un "sandwich" entre Estándar y Premium.',
+      hint: 'GUÍA DE RESPUESTA — Usa fin de semana = −5 % por día (norma del sector para paquetes de 2 noches) y semana = −30 % por día (descuento de larga estancia). Nomade fin de semana Std → €75/día (€150 total), Prem → €95/día; semana Std → €60/día (€360 total), Prem → €77/día. Anclar el "precio semanal" mostrando el ahorro por día frente a la referencia "7 × diario" dentro del simulador. Usa Factores psicológicos → Anclaje: deja Básico = competidor más barato, Medio = Nomade Std, Premium = Nomade Prem y aplícalo a la posición. El gráfico combinado "Std+Prem × Día/Fin de semana/Semana" hace visible el sandwich 2 × 3 en una sola imagen.'
+    },
+    { id: 'Q4',
+      title: 'Propuesta completa de precios',
+      prompt: 'Entrega la estrategia final de precios con justificación completa: (a) tabla de precios completa (Estándar/Premium × Día/Fin de semana/Semana); (b) comparación frente a competidores (con tus supuestos de fin de semana/semana); (c) justificación — análisis DAP (curvas de beneficio), posicionamiento competitivo (diferenciación vs costes), tácticas psicológicas (anclaje, sandwich, charm); (d) resultados de negocio esperados (beneficio, posicionamiento de mercado); (e) considera estructuras alternativas (ej. 3 niveles con versión "enhanced"); (f) mitigación de riesgos (reacción de competidores).',
+      hint: 'GUÍA DE RESPUESTA — Propuesta base: Std (Día €79 / Fin de semana €75/día / Semana €60/día), Prem (Día €99 / Fin de semana €95/día / Semana €77/día). Terminaciones charm €79 / €99 capturan el efecto del dígito 9 sin erosionar el margen. Resultados: ≈ 65 % de aceptación en Std, 40–50 % en Prem, brecha de −€5–€10 vs competidor medio, beneficio total > €80 k/año combinado. Riesgos: (i) los competidores bajan precio en el Std diario → comprometerse a un bloqueo de precio durante 6 meses + fidelización semana-al-precio-de-día; (ii) hándicap de reconocimiento de marca → potenciar el discurso de sostenibilidad; (iii) canibalización → mantener brecha Std–Prem ≥ 20 €. Rellena cada precio en Posición y precios, añade la nota del analista y descarga el Excel. Ese fichero ES la propuesta.'
+    }
+  ];
+
+  const [downloading, setDownloading] = useState(false);
+  const [downloadStatus, setDownloadStatus] = useState(null);
+
+  const curSurvey = SURVEY[period][version];
+  const curCosts  = COSTS[version];
+  const curveStd  = useMemo(()=>profitCurve(SURVEY[period].standard, COSTS.standard, period), [period]);
+  const curvePrem = useMemo(()=>profitCurve(SURVEY[period].premium,  COSTS.premium,  period), [period]);
+  const peakStd   = useMemo(()=>findPeak(curveStd),  [curveStd]);
+  const peakPrem  = useMemo(()=>findPeak(curvePrem), [curvePrem]);
+  const curCurve  = version === 'standard' ? curveStd  : curvePrem;
+
+  /* Los competidores tienen UN solo precio; ambos campos ver actualizan el mismo campo */
+  const updateCompetitor = (comp, _ver, val) =>
+    setCompetitors(prev => ({ ...prev, [period]: { ...prev[period], [comp]: { price: parseFloat(val)||0 } } }));
+  const competitorPrice = (p, cKey) => compPrice(competitors[p][cKey]);
+
+  /* En el gráfico competitivo, los competidores aparecen UNA vez (tarifa única), Nomade aparece con sus dos gamas. */
+  const compData = [
+    { name: 'Nomade Std',   price: ourPrices[period].standard, color: '#2563eb', isUs: true,  tier: 'Estándar' },
+    { name: 'Nomade Prem',  price: ourPrices[period].premium,  color: '#f97316', isUs: true,  tier: 'Premium'  },
+    ...COMP_META.map(c => ({ name: c.name, price: competitorPrice(period, c.k), color: c.color, isUs: false, tier: 'Tarifa única' }))
+  ];
+  /* Promedio de la tarifa única de competencia — usado para el KPI "brecha vs media" */
+  const avgComp     = COMP_META.reduce((s,c) => s + competitorPrice(period, c.k), 0) / COMP_META.length;
+  const avgCompStd  = avgComp;
+  const avgCompPrem = avgComp;
+  const gapStd  = ourPrices[period].standard - avgCompStd;
+  const gapPrem = ourPrices[period].premium  - avgCompPrem;
+  const pctAcceptStd  = pctAccepting(SURVEY[period].standard, ourPrices[period].standard);
+  const pctAcceptPrem = pctAccepting(SURVEY[period].premium,  ourPrices[period].premium);
+
+  /* Sincronizar los valores por defecto de los factores psicológicos con la posición actual de Nomade
+     (solo cuando cambian periodo/versión o el usuario hace clic explícito en "Reset") */
+  useEffect(() => {
+    const ourStd  = ourPrices[period].standard;
+    const ourPrem = ourPrices[period].premium;
+    const compStdMin = Math.min(...COMP_META.map(c => competitorPrice(period, c.k)));
+    setAnchorTier({ basic: compStdMin, mid: ourStd, premium: ourPrem });
+    const rounded = ourStd;
+    setCharmTest({ round: rounded, charm: rounded > 10 ? rounded - 1 : rounded });
+    setRefPrice(compStdMin);
+    setProspectFromTo({ from: ourStd, to: Math.round(ourStd * 1.1) });
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [period, version, psychSynced]);
+
+  /* Métricas en vivo en el "Nuestro precio" actual para la versión activa */
+  const live = useMemo(() => {
+    const ourP = ourPrices[period][version];
+    const D0 = COSTS[version].D * DEMAND_MULT[period];
+    const d = interpolateDemand(SURVEY[period][version], ourP, D0);
+    const rev = ourP * d;
+    const vc  = COSTS[version].VC * d;
+    const prof = rev - vc - COSTS[version].FC;
+    const peak = version === 'standard' ? peakStd : peakPrem;
+    return {
+      price: ourP,
+      demand: Math.round(d),
+      revenue: Math.round(rev),
+      profit: Math.round(prof),
+      lostVsPeak: Math.round(peak.profit - prof),
+      peakPrice: peak.price
+    };
+  }, [ourPrices, period, version, peakStd, peakPrem]);
+
+  /* ---------- Componentes de gráficos (aceptan w,h para que la copia offscreen pueda renderizar a tamaño fijo) ---------- */
+  const wtpData = useMemo(() => {
+    const cum = wtpCumulative(curSurvey);
+    return curSurvey.map(d => ({ ...d, pctAbove: (cum.find(c=>c.price===d.price)||{}).pctAbove || 0 }));
+  }, [curSurvey]);
+
+  const WTPChart = ({h=320, w="100%"}) => (
+    <ResponsiveContainer width={w} height={h}>
+      <ComposedChart data={wtpData}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="price" />
+        <YAxis yAxisId="l" />
+        <YAxis yAxisId="r" orientation="right" />
+        <Tooltip />
+        <Legend />
+        <Bar yAxisId="l" dataKey="responses" name="Respuestas" fill={version==='standard' ? '#3b82f6' : '#f97316'} />
+        <Line yAxisId="r" type="monotone" dataKey="pctAbove" name="% acept. acumulada (≥ precio)" stroke="#10b981" strokeWidth={2} />
+        <ReferenceLine yAxisId="l" x={ourPrices[period][version]} stroke="#f97316" strokeWidth={2} strokeDasharray="4 4" label={{ value:`Nuestro €${ourPrices[period][version]}`, fill:'#f97316', position:'top' }} />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+
+  const ProfitChart = ({h=380, w="100%", interactive=false}) => {
+    const [dragging, setDragging] = useState(false);
+    useEffect(() => {
+      if (!interactive) return;
+      const up = () => setDragging(false);
+      window.addEventListener('mouseup', up);
+      return () => window.removeEventListener('mouseup', up);
+    }, [interactive]);
+    const snap = (val) => {
+      /* ajustar al x más cercano de la curva para evitar saltos */
+      let best = curCurve[0].price, dmin = Infinity;
+      for (const p of curCurve) { const d = Math.abs(p.price - val); if (d < dmin) { dmin = d; best = p.price; } }
+      return best;
+    };
+    const move = (e, forceStart=false) => {
+      if (!interactive) return;
+      if (e && e.activeLabel != null) {
+        const v = snap(e.activeLabel);
+        if (forceStart || dragging) {
+          setOurPrices(prev => ({ ...prev, [period]: { ...prev[period], [version]: v } }));
+        }
+      }
+    };
+    return (
+      <ResponsiveContainer width={w} height={h}>
+        <LineChart data={curCurve}
+          onMouseDown={(e) => { if (interactive && e?.activeLabel != null) { setDragging(true); move(e, true); } }}
+          onMouseMove={(e) => move(e)}
+          style={interactive ? { cursor: dragging ? 'grabbing' : 'crosshair' } : undefined}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="price" type="number" domain={['dataMin','dataMax']} label={{ value:'Precio (€)', position:'insideBottom', offset:-4 }} />
+          <YAxis />
+          <Tooltip formatter={v => `€${Number(v).toLocaleString()}`} />
+          <Legend />
+          <ReferenceLine x={peakStd.price}  stroke="#2563eb" strokeDasharray="5 5" label={{ value:`Std opt €${peakStd.price}`,  position:'top', fill:'#2563eb' }}/>
+          <ReferenceLine x={peakPrem.price} stroke="#f97316" strokeDasharray="5 5" label={{ value:`Prem opt €${peakPrem.price}`, position:'top', fill:'#f97316' }}/>
+          {COMP_META.map(c => (
+            <ReferenceLine key={c.k} x={competitorPrice(period, c.k)} stroke={c.color} strokeDasharray="3 3"
+              label={{ value: c.name, fill: c.color, position: 'insideTop', fontSize: 11 }} />
+          ))}
+          <ReferenceLine x={ourPrices[period][version]} stroke="#059669" strokeWidth={3}
+            label={{ value: interactive ? `◉ Nuestro €${ourPrices[period][version]} — arrástrame` : `Nuestro €${ourPrices[period][version]}`, position:'bottom', fill:'#059669', fontSize: 12, fontWeight: 600 }}/>
+          <Line type="monotone" dataKey="profit" stroke={version==='standard' ? '#3b82f6' : '#f97316'} strokeWidth={3} dot={false} name={version==='standard'?'Beneficio Estándar':'Beneficio Premium'} isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const DemandChart = ({h=300, w="100%"}) => (
+    <ResponsiveContainer width={w} height={h}>
+      <ComposedChart data={curCurve}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="price" />
+        <YAxis yAxisId="l" />
+        <YAxis yAxisId="r" orientation="right" />
+        <Tooltip />
+        <Legend />
+        <Line yAxisId="l" type="monotone" dataKey="demand"  stroke="#2563eb" strokeWidth={2} dot={false} name="Demanda (alquileres)" />
+        <Line yAxisId="r" type="monotone" dataKey="revenue" stroke="#f97316" strokeWidth={2} dot={false} name="Ingresos (€)" />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+
+  const CompetitiveChart = ({h=360, w="100%"}) => (
+    <ResponsiveContainer width={w} height={h}>
+      <BarChart data={compData} margin={{top:20, right:30, left:0, bottom:60}}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" angle={-14} textAnchor="end" height={70} />
+        <YAxis />
+        <Tooltip formatter={(v,_n,p) => [`€${v}`, p?.payload?.tier || 'Precio']} />
+        <Legend />
+        <ReferenceLine y={peakStd.price}  stroke="#2563eb" strokeDasharray="5 5" label={{ value:`Std opt €${peakStd.price}`,  position:'insideTopRight', fill:'#2563eb', fontSize:11 }}/>
+        <ReferenceLine y={peakPrem.price} stroke="#f97316" strokeDasharray="5 5" label={{ value:`Prem opt €${peakPrem.price}`, position:'insideBottomRight', fill:'#f97316', fontSize:11 }}/>
+        <Bar dataKey="price" name="Precio (€)">
+          {compData.map((e,i) => <Cell key={i} fill={e.color} opacity={e.isUs ? 1 : 0.85} />)}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+
+  /* ======================================================================
+     Mapas de posicionamiento — Precio vs atributo percibido (Marca / Sostenibilidad / Diseño)
+     ====================================================================== */
+  const positioningData = (attr) => [
+    { name: PROFILES.nomade.name,       x: PROFILES.nomade[attr],       y: ourPrices.day.standard,         color: PROFILES.nomade.color,       isUs: true,  size: PROFILES.nomade.size },
+    { name: PROFILES.furtherVAN.name,   x: PROFILES.furtherVAN[attr],   y: competitorPrice('day','furtherVAN'),   color: PROFILES.furtherVAN.color,   isUs: false, size: PROFILES.furtherVAN.size },
+    { name: PROFILES.peopleCamper.name, x: PROFILES.peopleCamper[attr], y: competitorPrice('day','peopleCamper'), color: PROFILES.peopleCamper.color, isUs: false, size: PROFILES.peopleCamper.size },
+    { name: PROFILES.oceanVans.name,    x: PROFILES.oceanVans[attr],    y: competitorPrice('day','oceanVans'),    color: PROFILES.oceanVans.color,    isUs: false, size: PROFILES.oceanVans.size }
+  ];
+
+  const PositioningMap = ({ attrKey, attrLabel, h=340, w="100%", children }) => {
+    const data = positioningData(attrKey);
+    const yMin = Math.max(0, Math.min(...data.map(d=>d.y)) - 15);
+    const yMax = Math.max(...data.map(d=>d.y)) + 20;
+    return (
+      <ResponsiveContainer width={w} height={h}>
+        <ScatterChart margin={{top:20, right:60, bottom:50, left:20}}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis type="number" dataKey="x" name={attrLabel} domain={[0,10]}
+                 ticks={[0,2,4,6,8,10]}
+                 label={{ value: attrLabel + ' (0–10)', position:'insideBottom', offset:-10, fontSize:12 }} />
+          <YAxis type="number" dataKey="y" name="Precio"
+                 domain={[yMin, yMax]}
+                 label={{ value:'Precio diario (€)', angle:-90, position:'insideLeft', fontSize:12 }} />
+          <Tooltip cursor={{strokeDasharray:'3 3'}}
+                   formatter={(v,n) => n==='Precio' ? `€${v}` : `${v}/10`}
+                   labelFormatter={() => ''} />
+          {/* Un Scatter por punto para que cada uno tenga su color + etiqueta */}
+          {data.map((d,i) => (
+            <Scatter key={i} name={d.name} data={[d]} fill={d.color}>
+              <LabelList dataKey="name" position="right" offset={10} style={{fontSize:11, fontWeight:600, fill:d.color}} />
+            </Scatter>
+          ))}
+          {children}
+        </ScatterChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const PositioningBrandChart   = (p) => <PositioningMap {...p} attrKey="brand"   attrLabel="Reconocimiento de marca" />;
+  const PositioningSustainChart = (p) => <PositioningMap {...p} attrKey="sustain" attrLabel="Sostenibilidad" />;
+  const PositioningDesignChart  = (p) => <PositioningMap {...p} attrKey="design"  attrLabel="Diseño / personalización" />;
+
+  /* Gráfico combinado de posicionamiento — Std + Prem × Día / Fin de semana / Semana en UN solo gráfico,
+     con la tarifa única de los competidores como líneas de referencia para el periodo activo. */
+  const CombinedPositioningChart = ({h=380, w="100%"}) => {
+    const data = PERIODS.map(p => ({
+      period: p.label.split(' ')[0],
+      'Nomade Estándar': ourPrices[p.k].standard,
+      'Nomade Premium':  ourPrices[p.k].premium,
+      'Further VAN':     competitorPrice(p.k, 'furtherVAN'),
+      'People Camper':   competitorPrice(p.k, 'peopleCamper'),
+      'Ocean Vans':      competitorPrice(p.k, 'oceanVans')
+    }));
+    return (
+      <ResponsiveContainer width={w} height={h}>
+        <BarChart data={data} margin={{top:30, right:30, left:0, bottom:10}}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="period" />
+          <YAxis />
+          <Tooltip formatter={v => `€${v}`} />
+          <Legend wrapperStyle={{fontSize:'.82rem'}} />
+          {/* Nomade — el sandwich de dos gamas */}
+          <Bar dataKey="Nomade Estándar" fill="#2563eb" />
+          <Bar dataKey="Nomade Premium"  fill="#f97316" />
+          {/* Competidores — barras de referencia tarifa única en tonos grises */}
+          <Bar dataKey="Further VAN"   fill="#93c5fd" />
+          <Bar dataKey="People Camper" fill="#c4b5fd" />
+          <Bar dataKey="Ocean Vans"    fill="#6ee7b7" />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const GapChart = ({h=300, w="100%"}) => {
+    const data = COMP_META.map(c => ({ name: c.name,
+      standardGap: ourPrices[period].standard - competitorPrice(period, c.k),
+      premiumGap:  ourPrices[period].premium  - competitorPrice(period, c.k) }));
+    return (
+      <ResponsiveContainer width={w} height={h}>
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" />
+          <YAxis />
+          <ReferenceLine y={0} stroke="#0f172a" />
+          <Tooltip />
+          <Legend />
+          <Bar dataKey="standardGap" name="Brecha Estándar vs competidor (€)" fill="#2563eb" />
+          <Bar dataKey="premiumGap"  name="Brecha Premium vs competidor (€)"  fill="#f97316" />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const AnchorChart = ({h=260, w="100%"}) => {
+    const data = [
+      { name: 'Básico',            price: anchorTier.basic },
+      { name: 'Medio (objetivo)',  price: anchorTier.mid },
+      { name: 'Anclaje Premium',   price: anchorTier.premium }
+    ];
+    return (
+      <ResponsiveContainer width={w} height={h}>
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" /><YAxis />
+          <Tooltip formatter={v=>`€${v}`} />
+          <Bar dataKey="price"><Cell fill="#94a3b8"/><Cell fill="#059669"/><Cell fill="#dc2626"/></Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const CharmChart = ({h=260, w="100%"}) => {
+    const left1 = Math.floor(charmTest.round/10);
+    const left2 = Math.floor(charmTest.charm/10);
+    const demandRound = interpolateDemand(curSurvey, charmTest.round, curCosts.D * DEMAND_MULT[period]);
+    const boost = left2 < left1 ? 1.07 : 1.0;
+    const demandCharm = interpolateDemand(curSurvey, charmTest.charm, curCosts.D * DEMAND_MULT[period]) * boost;
+    const data = [
+      { name: `€${charmTest.round} (redondo)`, demand: Math.round(demandRound), profit: Math.round(demandRound*(charmTest.round-curCosts.VC)-curCosts.FC) },
+      { name: `€${charmTest.charm} (charm)`,   demand: Math.round(demandCharm), profit: Math.round(demandCharm*(charmTest.charm-curCosts.VC)-curCosts.FC) }
+    ];
+    return (
+      <ResponsiveContainer width={w} height={h}>
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" /><YAxis yAxisId="l" /><YAxis yAxisId="r" orientation="right" />
+          <Tooltip /><Legend />
+          <Bar yAxisId="l" dataKey="demand" name="Demanda esperada" fill="#2563eb" />
+          <Bar yAxisId="r" dataKey="profit" name="Beneficio (€)"    fill="#f97316" />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const ProspectChart = ({h=280, w="100%"}) => {
+    const delta = prospectFromTo.to - prospectFromTo.from; /* €, desde la perspectiva del cliente: +ve = descuento, -ve = subida */
+    const customerChange = -delta; /* "ganancia" (descuento) o "pérdida" (subida) del cliente vs referencia */
+    const xMax = Math.max(50, Math.ceil(Math.abs(customerChange) * 1.2));
+    const pts = [];
+    for (let x = -xMax; x <= xMax; x += Math.max(1, Math.round(xMax/30))) pts.push({ gainLoss: x, value: Math.round(prospectValue(x)*100)/100 });
+    const vChange = prospectValue(customerChange);
+    const vEqualGain = customerChange < 0 ? Math.abs(vChange) : null; /* qué tamaño de ganancia haría falta para compensar */
+    return (
+      <ResponsiveContainer width={w} height={h}>
+        <LineChart data={pts}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="gainLoss" type="number" domain={[-xMax, xMax]} label={{ value:'Ganancia (+) o pérdida (−) del cliente vs referencia (€)', position:'insideBottom', offset:-4, fontSize:11 }} />
+          <YAxis label={{ value:'Valor percibido', angle:-90, position:'insideLeft', fontSize:11 }} />
+          <ReferenceLine x={0} stroke="#0f172a" /><ReferenceLine y={0} stroke="#0f172a" />
+          <Tooltip />
+          <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={3} dot={false} name="v(x)" isAnimationActive={false} />
+          <ReferenceLine x={customerChange} stroke={delta>0 ? '#059669' : '#dc2626'} strokeWidth={2} strokeDasharray="5 5"
+            label={{ value: `Δ €${delta>=0?'+':''}${delta} → percibido ${Math.round(vChange*10)/10}`, fill: delta>0 ? '#059669' : '#dc2626', position:'top', fontSize:11 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const ReferenceChart = ({h=260, w="100%"}) => {
+    const below = curSurvey.filter(d => d.price <  refPrice).reduce((s,d)=>s+d.responses,0);
+    const at    = curSurvey.filter(d => d.price === refPrice).reduce((s,d)=>s+d.responses,0);
+    const above = curSurvey.filter(d => d.price >  refPrice).reduce((s,d)=>s+d.responses,0);
+    const data = [
+      { name: `Por debajo de €${refPrice}`, value: below, fill:'#dc2626' },
+      { name: `En €${refPrice}`,            value: at,    fill:'#f59e0b' },
+      { name: `Por encima de €${refPrice}`, value: above, fill:'#059669' }
+    ];
+    return (
+      <ResponsiveContainer width={w} height={h}>
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" /><YAxis />
+          <Tooltip />
+          <Bar dataKey="value">{data.map((d,i)=><Cell key={i} fill={d.fill} />)}</Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const CHART_CATALOG = [
+    { k:'wtp',         label:'Distribución DAP',        C: WTPChart,               group:'overview' },
+    { k:'profit',      label:'Curva de beneficio',      C: ProfitChart,            group:'overview' },
+    { k:'demand',      label:'Demanda + Ingresos',      C: DemandChart,            group:'overview' },
+    { k:'competitive', label:'Posicionamiento competitivo', C: CompetitiveChart,   group:'overview' },
+    { k:'combined',    label:'Std+Prem × Día/Fin de semana/Semana + competidores', C: CombinedPositioningChart, group:'overview' },
+    { k:'posBrand',    label:'Mapa de posicionamiento — Precio × Reconocimiento de marca', C: PositioningBrandChart,   group:'overview' },
+    { k:'posSust',     label:'Mapa de posicionamiento — Precio × Sostenibilidad',          C: PositioningSustainChart, group:'overview' },
+    { k:'posDesign',   label:'Mapa de posicionamiento — Precio × Diseño',                  C: PositioningDesignChart,  group:'overview' },
+    { k:'gap',         label:'Brecha vs competidores',  C: GapChart,               group:'overview' },
+    { k:'anchor',      label:'Anclaje / Sandwich',      C: AnchorChart,      group:'psych' },
+    { k:'charm',       label:'Charm pricing (dígito 9)', C: CharmChart,      group:'psych' },
+    { k:'prospect',    label:'Teoría de las Perspectivas', C: ProspectChart,  group:'psych' },
+    { k:'reference',   label:'Precio de referencia',    C: ReferenceChart,   group:'psych' }
+  ];
+
+  /* ============================================================
+     Exportación — SVG → PNG → Excel
+     ============================================================ */
+  const svgToPngDataUrl = async (svgEl, scale = 2) => {
+    const clone = svgEl.cloneNode(true);
+    const w = svgEl.clientWidth  || svgEl.getBoundingClientRect().width  || 860;
+    const h = svgEl.clientHeight || svgEl.getBoundingClientRect().height || 380;
+    clone.setAttribute('width',  w);
+    clone.setAttribute('height', h);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    const xml = new XMLSerializer().serializeToString(clone);
+    const b64 = btoa(unescape(encodeURIComponent(xml)));
+    const img = new Image();
+    img.src = 'data:image/svg+xml;base64,' + b64;
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+    const canvas = document.createElement('canvas');
+    canvas.width  = w * scale;
+    canvas.height = h * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL('image/png');
+  };
+
+  const buildExcel = async () => {
+    setDownloading(true);
+    setDownloadStatus({kind:'info', text:'Renderizando gráficos…'});
+    await new Promise(r => setTimeout(r, 60));
+    try {
+      const images = {};
+      for (const c of CHART_CATALOG) {
+        const host = document.getElementById('cap-' + c.k);
+        if (!host) continue;
+        const svg = host.querySelector('svg');
+        if (!svg) continue;
+        try { images[c.k] = await svgToPngDataUrl(svg, 2); } catch (e) { console.warn('skip', c.k, e); }
+      }
+
+      setDownloadStatus({kind:'info', text:'Construyendo libro de Excel…'});
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Simulador de precios Nomade Vans';
+      wb.created = new Date();
+
+      /* Hoja 1: Guía */
+      const s1 = wb.addWorksheet('Guía');
+      s1.columns = [{ width: 26 }, { width: 90 }];
+      const g = [
+        ['Nomade Vans — Simulador de precios', ''],
+        ['Generado el', new Date().toISOString()],
+        ['', ''],
+        ['Contexto del caso', ''],
+        ['Empresa',          'Nomade Vans — start-up española que diseña furgonetas camperizadas sostenibles. Dos gamas de servicio: Estándar y Premium. Nueva línea de negocio en evaluación: alquiler de furgonetas.'],
+        ['Periodos de alquiler', 'Día · Fin de semana (2 noches) · Semana (6 noches).'],
+        ['Encuesta',           '95 encuestados — demografía, hábitos de viaje y DAP máxima en 6 escenarios de alquiler.'],
+        ['Competidores',       'Further VAN experience · People Camper · Ocean Vans — solo tarifas diarias.'],
+        ['', ''],
+        ['⚠ Nota sobre los datos', ''],
+        ['Conjunto de datos incompleto', 'Los tres competidores publican SOLO tarifas DIARIAS. Los precios de fin de semana y semana en el simulador son ESTIMACIONES agregadas a partir de la tarifa diaria (fin de semana ≈ −5 % por día, semana ≈ −30 % por día). Trátalos como escenarios de referencia, no como datos observados. Los datos de DAP de Nomade sí son reales (95 encuestados).'],
+        ['', ''],
+        ['Cómo leer este fichero', ''],
+        ['Guía',                  'Esta hoja — contexto del caso, nota de datos y vista activa.'],
+        ['Preguntas',             'Las 13 preguntas formuladas a los 95 encuestados (solo referencia, no es tarea del alumno).'],
+        ['Respuestas — Día',      'Respuestas agregadas a las preguntas de DAP "día" (Estándar y Premium).'],
+        ['Respuestas — Fin de semana', 'Lo mismo para la tarifa de fin de semana (derivada de la DAP diaria mediante escalado).'],
+        ['Respuestas — Semana',   'Lo mismo para la tarifa semanal (derivada de la DAP diaria mediante escalado).'],
+        ['Posición',              'Los precios fijados en el simulador y los KPIs resultantes.'],
+        ['Respuestas del caso',   'Tus respuestas escritas a las cuatro preguntas formales del caso.'],
+        ['Gráficos',              'Los 9 gráficos del simulador, embebidos como imágenes.'],
+        ['', ''],
+        ['Tu vista activa al descargar', ''],
+        ['Periodo',               period],
+        ['Versión',               version],
+        ['Nuestro precio Estándar (€)', ourPrices[period].standard],
+        ['Nuestro precio Premium (€)',  ourPrices[period].premium],
+        ['Nota del analista',     positionNote || '(ninguna)']
+      ];
+      g.forEach((r,i) => {
+        const row = s1.addRow(r);
+        if (i === 0) row.font = { bold: true, size: 14 };
+        if (['Contexto del caso','⚠ Nota sobre los datos','Cómo leer este fichero','Tu vista activa al descargar'].includes(r[0])) row.font = { bold: true };
+        if (r[0] === '⚠ Nota sobre los datos') row.getCell(1).font = { bold: true, color: { argb: 'FF92400E' } };
+      });
+
+      /* Hoja 2: Preguntas */
+      const s2 = wb.addWorksheet('Preguntas');
+      s2.columns = [
+        { header: 'ID',       key: 'id',      width: 8 },
+        { header: 'Pregunta', key: 'text',    width: 60 },
+        { header: 'Tipo',     key: 'type',    width: 20 },
+        { header: 'Opciones / Rango', key: 'options', width: 40 }
+      ];
+      s2.getRow(1).font = { bold: true };
+      QUESTIONS.forEach(q => s2.addRow(q));
+
+      /* Hojas 3–5: Respuestas por periodo */
+      for (const p of PERIODS) {
+        const shortLabel = p.label.split(' ')[0];
+        const s = wb.addWorksheet('Respuestas — ' + shortLabel);
+        s.columns = [
+          { header: 'Periodo',   key:'period',    width: 10 },
+          { header: 'Versión',   key:'version',   width: 12 },
+          { header: 'Precio (€)', key:'price',    width: 10 },
+          { header: 'Respuestas', key:'responses', width: 10 },
+          { header: '% de encuestados', key:'pct', width: 18 },
+          { header: '% acum. aceptando ≥ precio', key:'pctAbove', width: 28 }
+        ];
+        s.getRow(1).font = { bold: true };
+        for (const v of ['standard','premium']) {
+          const cum = wtpCumulative(SURVEY[p.k][v]);
+          const total = SURVEY[p.k][v].reduce((a,d)=>a+d.responses,0);
+          for (const r of SURVEY[p.k][v]) {
+            const pAbove = (cum.find(c=>c.price===r.price)||{}).pctAbove || 0;
+            s.addRow({
+              period: p.k, version: v,
+              price: r.price, responses: r.responses,
+              pct: Math.round(r.responses/total*1000)/10,
+              pctAbove: Math.round(pAbove*10)/10
+            });
+          }
+        }
+      }
+
+      /* Hoja 6: Posición */
+      const s6 = wb.addWorksheet('Posición');
+      s6.columns = [{ width: 40 }, { width: 22 }];
+      s6.addRow(['Snapshot de la posición en el simulador']).font = { bold: true, size: 13 };
+      s6.addRow([]);
+      s6.addRow(['— Nuestros precios —']).font = { bold: true };
+      for (const p of PERIODS) {
+        s6.addRow(['Nuestro ' + p.k + ' Estándar (€)', ourPrices[p.k].standard]);
+        s6.addRow(['Nuestro ' + p.k + ' Premium (€)',  ourPrices[p.k].premium]);
+      }
+      s6.addRow([]);
+      s6.addRow(['— Precios de competidores (periodo activo: ' + period + ') —']).font = { bold: true };
+      for (const c of COMP_META) {
+        s6.addRow([c.name + ' tarifa diaria (€) [tarifa única]', competitorPrice(period, c.k)]);
+      }
+      s6.addRow([]);
+      s6.addRow(['— KPIs (vista activa) —']).font = { bold: true };
+      s6.addRow(['Periodo activo', period]);
+      s6.addRow(['Versión activa', version]);
+      s6.addRow(['Beneficio óptimo — Estándar (precio €)', peakStd.price]);
+      s6.addRow(['Beneficio óptimo — Estándar (€)',        peakStd.profit]);
+      s6.addRow(['Beneficio óptimo — Premium (precio €)',  peakPrem.price]);
+      s6.addRow(['Beneficio óptimo — Premium (€)',         peakPrem.profit]);
+      s6.addRow(['Brecha vs competidor medio — Estándar (€)', Math.round(gapStd*100)/100]);
+      s6.addRow(['Brecha vs competidor medio — Premium (€)',  Math.round(gapPrem*100)/100]);
+      s6.addRow(['% Aceptación — Estándar', Math.round(pctAcceptStd*10)/10]);
+      s6.addRow(['% Aceptación — Premium',  Math.round(pctAcceptPrem*10)/10]);
+      s6.addRow([]);
+      s6.addRow(['— Parámetros psicológicos —']).font = { bold: true };
+      s6.addRow(['Anclaje — básico (€)',   anchorTier.basic]);
+      s6.addRow(['Anclaje — medio (€)',    anchorTier.mid]);
+      s6.addRow(['Anclaje — premium (€)',  anchorTier.premium]);
+      s6.addRow(['Charm — precio redondo (€)', charmTest.round]);
+      s6.addRow(['Charm — precio charm (€)',   charmTest.charm]);
+      s6.addRow(['Precio de referencia (€)',   refPrice]);
+      s6.addRow([]);
+      s6.addRow(['Nota del analista', positionNote || '(ninguna)']);
+
+      /* Hoja 6b: Respuestas del caso — las cuatro preguntas formales */
+      const sA = wb.addWorksheet('Respuestas del caso');
+      sA.columns = [{ width: 6 }, { width: 30 }, { width: 90 }];
+      const titleRow = sA.addRow(['', 'Nomade Vans — Entregables del caso', '']);
+      titleRow.getCell(2).font = { bold: true, size: 14 };
+      sA.addRow([]);
+      for (const q of CASE_QUESTIONS) {
+        const hdr = sA.addRow([q.id, q.title, '']);
+        hdr.getCell(1).font = { bold: true, color: { argb: 'FFF97316' } };
+        hdr.getCell(2).font = { bold: true };
+        const prompt = sA.addRow(['', 'Enunciado', q.prompt]);
+        prompt.getCell(2).font = { italic: true, color: { argb: 'FF64748B' } };
+        prompt.getCell(3).alignment = { wrapText: true, vertical: 'top' };
+        const hint = sA.addRow(['', 'Pista del simulador', q.hint]);
+        hint.getCell(2).font = { italic: true, color: { argb: 'FF64748B' } };
+        hint.getCell(3).alignment = { wrapText: true, vertical: 'top' };
+        const answerText = caseAnswers[q.id.toLowerCase()] || '(sin respuesta todavía)';
+        const ans = sA.addRow(['', 'Tu respuesta', answerText]);
+        ans.getCell(2).font = { bold: true };
+        ans.getCell(3).alignment = { wrapText: true, vertical: 'top' };
+        ans.height = Math.min(300, Math.max(40, Math.round(answerText.length/80)*18 + 40));
+        sA.addRow([]);
+      }
+
+      /* Hoja 7: Gráficos */
+      const s7 = wb.addWorksheet('Gráficos');
+      s7.columns = [{ width: 4 }, { width: 110 }];
+      s7.addRow(['', 'Gráficos capturados del simulador']).getCell(2).font = { bold: true, size: 14 };
+      let rowCursor = 3;
+      for (const c of CHART_CATALOG) {
+        const dataUrl = images[c.k];
+        if (!dataUrl) continue;
+        const labelCell = s7.getCell(rowCursor, 2);
+        labelCell.value = c.label;
+        labelCell.font = { bold: true };
+        const imgId = wb.addImage({ base64: dataUrl, extension: 'png' });
+        s7.addImage(imgId, {
+          tl:  { col: 1, row: rowCursor },
+          ext: { width: 720, height: 320 }
+        });
+        rowCursor += 22;
+      }
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `nomade-simulador-${period}-${version}-${new Date().toISOString().slice(0,10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      setDownloadStatus({kind:'ok', text:`Descargado ${a.download}`});
+    } catch (err) {
+      console.error(err);
+      setDownloadStatus({kind:'err', text:'Error: ' + (err.message || err)});
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  /* ============================================================
+     RENDER
+     ============================================================ */
+  const periodLabel = PERIODS.find(p=>p.k===period).label;
+
+  return (
+    <div className="wrap">
+      <div className="hero">
+        <h1>Nomade Vans — Simulador de precios</h1>
+        <p>DAP • Pricing basado en competencia • Factores psicológicos — interactivo, compartible y exportable.</p>
+      </div>
+
+      {/* Controles globales */}
+      <div className="card">
+        <div className="grid-2">
+          <div>
+            <label>Periodo de alquiler</label>
+            <div className="row">{PERIODS.map(p => <Pill key={p.k} active={period===p.k} onClick={()=>setPeriod(p.k)}>{p.label}</Pill>)}</div>
+            <p className="hint">¿Qué quieres tarifar — un solo día, un fin de semana de 2 noches o una semana de 6 noches?</p>
+          </div>
+          <div>
+            <label>Versión</label>
+            <div className="row">
+              <Pill active={version==='standard'} onClick={()=>setVersion('standard')}>Estándar</Pill>
+              <Pill active={version==='premium'}  onClick={()=>setVersion('premium')}>Premium</Pill>
+            </div>
+            <p className="hint">Cambia entre las dos gamas del vehículo. La mayoría de gráficos se adapta a esta elección.</p>
+          </div>
+        </div>
+
+        <div className="grid-4" style={{marginTop:14}}>
+          <KPI label="Precio óptimo Std"  value={`€${peakStd.price}`}  color="blue" />
+          <KPI label="Precio óptimo Prem" value={`€${peakPrem.price}`} color="orange" />
+          <KPI label="Nuestro precio Std"   value={`€${ourPrices[period].standard}`} />
+          <KPI label="Nuestro precio Prem"  value={`€${ourPrices[period].premium}`} />
+        </div>
+        <div className="grid-4" style={{marginTop:10}}>
+          <KPI label="Aceptación — Std"  value={`${pctAcceptStd.toFixed(1)}%`}  color={pctAcceptStd>50?'green':'red'} />
+          <KPI label="Aceptación — Prem" value={`${pctAcceptPrem.toFixed(1)}%`} color={pctAcceptPrem>50?'green':'red'} />
+          <KPI label="Brecha vs media (Std)"  value={`${gapStd>=0?'+':''}€${gapStd.toFixed(1)}`}  color={gapStd>0?'red':'green'} />
+          <KPI label="Brecha vs media (Prem)" value={`${gapPrem>=0?'+':''}€${gapPrem.toFixed(1)}`} color={gapPrem>0?'red':'green'} />
+        </div>
+        <p className="hint" style={{marginTop:8}}>
+          <strong>Óptimo</strong> = el precio que maximiza el beneficio en la curva de DAP. <strong>Aceptación</strong> = porcentaje de encuestados dispuestos a pagar al-precio-o-más. <strong>Brecha</strong> = tu precio menos la media de los tres competidores (positivo = eres más caro).
+        </p>
+      </div>
+
+      {/* Pestañas */}
+      <div className="tab-row">
+        <button className={`tab ${tab==='guide'?'active':''}`}    onClick={()=>setTab('guide')}>Cómo usarlo</button>
+        <button className={`tab ${tab==='overview'?'active':''}`} onClick={()=>setTab('overview')}>Basado en competencia</button>
+        <button className={`tab ${tab==='psych'?'active':''}`}    onClick={()=>setTab('psych')}>Factores psicológicos</button>
+        <button className={`tab ${tab==='position'?'active':''}`} onClick={()=>setTab('position')}>Posición y precios</button>
+        <button className={`tab ${tab==='answers'?'active':''}`}  onClick={()=>setTab('answers')}>Respuestas del caso</button>
+        <button className={`tab ${tab==='download'?'active':''}`} onClick={()=>setTab('download')}>Descargar Excel</button>
+      </div>
+
+      {/* ----- Pestaña: Cómo usarlo ----- */}
+      {tab==='guide' && (<>
+        <div className="card">
+          <h2>El caso — Nomade Vans</h2>
+          <p>
+            <strong>Nomade Vans</strong> es una start-up española que diseña y <em>«camperiza»</em>
+            furgonetas sostenibles. Los clientes personalizan su camper a través de la web de la empresa,
+            y la firma se compromete a una entrega en un mes. A diferencia de la mayoría de los players
+            del sector, Nomade construye un diseño único alineado con valores de sostenibilidad y respeto
+            al entorno natural.
+          </p>
+          <p>
+            Tras dos temporadas vendiendo furgonetas camperizadas en propiedad, los fundadores se plantean
+            ahora una nueva línea de negocio: <strong>el alquiler de furgonetas camperizadas</strong>. El plan
+            contempla dos gamas de servicio y tres periodos de alquiler.
+          </p>
+          <div className="grid-2">
+            <div className="box-soft">
+              <h3>Dos gamas de servicio</h3>
+              <ul style={{margin:'4px 0 0 18px', padding:0}}>
+                <li><strong>Alquiler Camper Estándar</strong> — la conversión base, paquete probado de cocina + cama.</li>
+                <li><strong>Alquiler Camper Premium</strong> — modelo híbrido, cama extra, ducha interior, aire acondicionado, energía solar y menaje adicional.</li>
+              </ul>
+            </div>
+            <div className="box-soft">
+              <h3>Tres periodos de alquiler</h3>
+              <ul style={{margin:'4px 0 0 18px', padding:0}}>
+                <li><strong>Día</strong> — alquiler de un solo día.</li>
+                <li><strong>Fin de semana</strong> — estancia de 2 noches.</li>
+                <li><strong>Semana</strong> — estancia de 6 noches.</li>
+              </ul>
+              <p className="hint" style={{marginTop:6}}>La combinación gamas × periodos define una estructura de precios 2 × 3.</p>
+            </div>
+          </div>
+          <p style={{marginTop:10}}>
+            Para calibrar la disposición a pagar, el equipo encuestó a <strong>95 personas</strong> — cubriendo
+            demografía, hábitos de viaje y el precio máximo que pagarían en seis escenarios de alquiler distintos.
+            El departamento de marketing identificó <strong>tres competidores</strong> en el mercado relevante —
+            <em> Further VAN experience, People Camper, Ocean Vans</em> — que actualmente operan solo con
+            tarifas diarias. El equipo comercial debe decidir, para cada periodo × versión: <em>cuánto cobrar,
+            dónde situarse frente a la competencia y cómo enmarcar el número</em> (factores psicológicos).
+          </p>
+
+          <div className="explain">
+            <strong>Paridad de tamaño — esto es un grupo de pares, no un combate David-vs-Goliat.</strong> Los cuatro
+            players son operadores de tamaño similar en el nicho español del camper sostenible. Tamaño aproximado de flota:
+            Nomade {PROFILES.nomade.size}, Further VAN {PROFILES.furtherVAN.size},
+            People Camper {PROFILES.peopleCamper.size}, Ocean Vans {PROFILES.oceanVans.size}. Ninguno es
+            una cadena multinacional. Eso importa porque <strong>la ventaja en estructura de costes de los incumbentes es limitada</strong> —
+            su prima de precio viene sobre todo del <strong>reconocimiento de marca</strong> y de haber llegado primero al mercado,
+            no de costes unitarios radicalmente menores. Por eso Nomade puede cerrar la brecha con relativa rapidez
+            construyendo percepción de marca sobre sus atributos más fuertes (sostenibilidad, personalización).
+          </div>
+
+          <div className="explain purple">
+            <strong>Por qué Nomade cobra menos (aunque está objetivamente más diferenciada).</strong> Cada
+            mapa de abajo representa el <strong>precio diario (Y)</strong> frente a un atributo percibido (X). Los mismos
+            cuatro players aparecen como puntos de colores — <span style={{color:PROFILES.nomade.color,fontWeight:700}}>Nomade</span>,
+            <span style={{color:PROFILES.furtherVAN.color,fontWeight:700}}> Further VAN</span>,
+            <span style={{color:PROFILES.peopleCamper.color,fontWeight:700}}> People Camper</span>,
+            <span style={{color:PROFILES.oceanVans.color,fontWeight:700}}> Ocean Vans</span>. En el mapa de
+            Reconocimiento de marca, Nomade está en la esquina inferior izquierda (poca marca, poco precio); en los mapas de
+            Sostenibilidad y Diseño la imagen se invierte — Nomade arriba a la derecha (mejor puntuación) y aun así el más barato. Esa
+            contradicción es la oportunidad de pricing: <em>construir percepción de marca para subir en el eje de precio
+            sin perder la narrativa de diferenciación</em>.
+          </div>
+
+          <div className="grid-3" style={{marginTop:12}}>
+            <div className="box-soft">
+              <h3 style={{color:'#5b21b6', marginBottom:6}}>Precio × Reconocimiento de marca</h3>
+              <PositioningBrandChart h={240} />
+              <p className="hint">Nomade abajo a la izquierda. Brecha de precio ≈ brecha de marca.</p>
+            </div>
+            <div className="box-soft">
+              <h3 style={{color:'#5b21b6', marginBottom:6}}>Precio × Sostenibilidad</h3>
+              <PositioningSustainChart h={240} />
+              <p className="hint">Nomade arriba a la derecha. La imagen se invierte.</p>
+            </div>
+            <div className="box-soft">
+              <h3 style={{color:'#5b21b6', marginBottom:6}}>Precio × Diseño</h3>
+              <PositioningDesignChart h={240} />
+              <p className="hint">Nomade 9/10 a €80. No es una brecha de calidad de producto.</p>
+            </div>
+          </div>
+          <p className="note" style={{marginTop:6}}>Todo lo de abajo — datos de DAP, precios de la competencia,
+            estructura de costes, marco de factores psicológicos — está precargado en las pestañas superiores para que puedas recorrer
+            la decisión de principio a fin y descargar el resultado.</p>
+        </div>
+
+        <div className="card" style={{background:'#fef3c7', borderColor:'#f59e0b'}}>
+          <h2 style={{color:'#92400e'}}>⚠ Nota sobre los datos — léela antes de usar el simulador</h2>
+          <p className="note" style={{color:'#78350f'}}>
+            <strong>El conjunto de datos no está completo.</strong> Los tres competidores (Further VAN, People Camper, Ocean Vans) <em>solo publican tarifas diarias</em>. Los precios de fin de semana y semana mostrados en el simulador son <strong>agregados estimados derivados de la tarifa diaria</strong> (fin de semana ≈ −5 % por día, semana ≈ −30 % por día) — trátalos como escenarios de referencia, no como dato observado. Puedes sobrescribir cualquier número en la pestaña <em>Posición y precios</em> si dispones de inteligencia competitiva más reciente. Los datos de DAP de Nomade sí son reales (95 encuestados).
+          </p>
+        </div>
+
+        <div className="card" style={{background:'#ecfdf5', borderColor:'#059669'}}>
+          <h2 style={{color:'#065f46'}}>✔ Todo está coordinado — un único número, una única fuente de verdad</h2>
+          <p className="note" style={{color:'#065f46'}}>
+            Las tres pestañas que fijan precio comparten el <strong>mismo estado</strong>. Si cambias el precio Estándar de Nomade en
+            Basado en competencia (arrastrando la línea verde) o en Factores psicológicos (clic en "Aplicar medio / charm → Nuestro Estándar"),
+            es el <strong>mismo número</strong> el que aparece en Posición y precios y el que termina en el Excel descargado.
+            Es un <strong>bucle cerrado</strong>: análisis DAP ⇆ posicionamiento competitivo ⇆ factores psicológicos ⇆ posición final ⇆ Excel.
+            No hace falta volver a introducir nada. La pestaña Posición y precios es simplemente el <em>snapshot actual</em> de todos tus movimientos.
+          </p>
+        </div>
+
+        <div className="card">
+          <h2>Cómo usar el simulador — en 5 pasos</h2>
+          <ol className="step-list">
+            <li><strong>Elige un periodo de alquiler</strong> (Diario / Fin de semana / Semana) y una <strong>versión</strong> (Estándar o Premium) en la parte superior. Todo se actualiza automáticamente.</li>
+            <li>Ve a <strong>Basado en competencia</strong>. Marca los gráficos que quieras ver y <strong>arrastra la línea verde sobre la Curva de beneficio</strong> — los KPIs de beneficio, demanda, ingresos y "perdido vs óptimo" se actualizan en vivo. Los botones rápidos te permiten saltar al óptimo o al precio de cada competidor.</li>
+            <li>Ve a <strong>Factores psicológicos</strong>. Prueba un menú de tres niveles (anclaje), testea un precio charm, explora la Teoría de las Perspectivas y fija un precio de referencia.</li>
+            <li>Abre <strong>Posición y precios</strong>. Cambia tus propios precios (mediante el gráfico o los inputs numéricos), modifica los de los competidores y añade una nota de texto libre.</li>
+            <li>Abre <strong>Respuestas del caso</strong>, escribe tu respuesta a cada una de las cuatro preguntas formales.</li>
+            <li>Abre <strong>Descargar Excel</strong>. Un clic produce el <code>.xlsx</code> que es <strong>el entregable completo</strong> — contexto del caso, preguntas, respuestas, tu posición final, tus respuestas escritas del caso y todos los gráficos como imagen. Sin necesidad de Word ni PowerPoint.</li>
+          </ol>
+          <div className="explain green" style={{marginTop:12}}>
+            <strong>Gráfico interactivo.</strong> En la <em>Curva de beneficio</em> la línea verde es tu precio. <strong>Haz clic en el gráfico o arrastra horizontalmente</strong> para posicionarla. Las tres líneas discontinuas de colores son Further VAN, People Camper y Ocean Vans — la altura de la curva en cada una te dice qué beneficio harías <em>si tarifaras como ellos</em>. Si moverte <em>hacia</em> un competidor sube la curva, conviene moverse; si la baja, quédate donde estás.
+          </div>
+        </div>
+
+        <div className="card" style={{background:'#eff6ff', borderColor:'#2563eb'}}>
+          <h2 style={{color:'#1e3a8a'}}>Cada pestaña está coordinada — esto es un bucle cerrado, no cuatro hojas independientes</h2>
+          <p className="note" style={{color:'#1e3a8a', marginBottom:8}}>
+            El precio de Nomade vive en <strong>un solo sitio</strong> en memoria y se reutiliza por todas partes. Cambiarlo en cualquier pestaña actualiza al instante todas las demás, y todos los KPIs con él. <em>No</em> tienes que reintroducir el mismo número en cada pestaña.
+          </p>
+          <div style={{background:'#fff', borderRadius:10, padding:12, border:'1px solid #bfdbfe', fontSize:'.88rem', lineHeight:1.7}}>
+            <div><strong>① Basado en competencia</strong> — arrastra la línea verde en la Curva de beneficio (o usa <em>Igualar competidor / Saltar al óptimo</em>). <span style={{color:'#64748b'}}>Escribe el precio de Nomade.</span></div>
+            <div style={{color:'#64748b', paddingLeft:18}}>↓</div>
+            <div><strong>② Factores psicológicos</strong> — anclaje / charm / prospect / referencia se <em>precargan</em> de ①. Experimenta y luego haz clic en <em>Aplicar a Estándar / Premium</em>. <span style={{color:'#64748b'}}>Vuelve a escribir el precio de Nomade.</span></div>
+            <div style={{color:'#64748b', paddingLeft:18}}>↓</div>
+            <div><strong>③ Posición y precios</strong> — el <strong>mismo gráfico interactivo</strong> + inputs numéricos. Esta pestaña es la <em>vista final</em>: lo que aquí esté es lo que va al Excel. Añade aquí tu nota de analista.</div>
+            <div style={{color:'#64748b', paddingLeft:18}}>↓</div>
+            <div><strong>④ Respuestas del caso</strong> — escribe las respuestas a las cuatro preguntas formales.</div>
+            <div style={{color:'#64748b', paddingLeft:18}}>↓</div>
+            <div><strong>⑤ Descargar Excel</strong> — captura <em>tu precio</em>, los competidores, KPIs, parámetros psicológicos, respuestas y gráficos → un solo .xlsx.</div>
+          </div>
+          <p className="note" style={{marginTop:10, color:'#1e3a8a'}}>
+            <strong>En resumen:</strong> <em>Basado en competencia</em> y <em>Factores psicológicos</em> son tus <em>laboratorios de experimentación</em>; <em>Posición y precios</em> es el <em>número final</em>; <em>Respuestas del caso</em> es donde lo justificas; <em>Descargar Excel</em> empaqueta el conjunto.
+          </p>
+        </div>
+
+        <div className="card">
+          <h2>Qué hace cada pestaña</h2>
+          <div className="explain">
+            <strong>Basado en competencia</strong> — distribución DAP de la encuesta de 90 respondientes, la curva de beneficio (con el óptimo marcado), demanda + ingresos, y dónde se sitúa Nomade frente a Further VAN, People Camper y Ocean Vans. Úsala para justificar <em>cuánto</em> por encima o por debajo de la competencia quieres estar.
+          </div>
+          <div className="explain orange">
+            <strong>Factores psicológicos</strong> — simulaciones de cuatro efectos de la nota técnica: <em>anclaje</em> (good-better-best), <em>charm pricing</em> (€80 vs €79), <em>teoría de las perspectivas</em> (las pérdidas pesan 2,25× más que las ganancias) y <em>precio de referencia</em>. Úsalas para refinar cómo se <em>presenta</em> el número.
+          </div>
+          <div className="explain green">
+            <strong>Posición y precios</strong> — donde decides. Cada número que fijes se incluye en la exportación a Excel, así puedes compartir o comparar versiones.
+          </div>
+          <div className="explain purple">
+            <strong>Descargar Excel</strong> — un solo <code>.xlsx</code> con 7 hojas: Guía, Preguntas, Respuestas (día / fin de semana / semana), Posición y Gráficos. Los gráficos van embebidos como imágenes.
+          </div>
+        </div>
+
+        <div className="card">
+          <h2>Glosario — haz clic para desplegar</h2>
+          <details><summary>DAP — Disposición a Pagar (WTP)</summary><div className="note">El precio máximo que un encuestado declara estar dispuesto a pagar por Nomade Vans. Preguntamos a 90 personas para cada uno de los 3 periodos × 2 versiones = 6 valores de DAP por persona.</div></details>
+          <details><summary>Precio óptimo</summary><div className="note">El precio que maximiza el beneficio dada la curva de demanda interpolada y la estructura de costes (variable €30 por alquiler, costes fijos €69.750 estándar / €77.750 premium, potencial de demanda 5.000).</div></details>
+          <details><summary>% Aceptación</summary><div className="note">Porcentaje de encuestados cuya DAP es igual o superior al precio fijado.</div></details>
+          <details><summary>Brecha vs competidor</summary><div className="note">Tu precio menos la media de los tres competidores. Positivo significa que eres más caro.</div></details>
+          <details><summary>Anclaje / Sandwich</summary><div className="note">Ofrece 3 niveles. El "anclaje premium" hace que la opción intermedia parezca razonable; el "básico" hace que la intermedia parezca digna del salto.</div></details>
+          <details><summary>Charm pricing</summary><div className="note">Los precios terminados en 9 se perciben más bajos que el siguiente número redondo, especialmente cuando cambia el dígito más a la izquierda (€80 → €79).</div></details>
+          <details><summary>Teoría de las Perspectivas</summary><div className="note">Kahneman y Tversky: las pérdidas pesan más que las ganancias — un descuento se siente menos de lo que duele una subida del mismo tamaño.</div></details>
+          <details><summary>Precio de referencia</summary><div className="note">Un benchmark mental — habitualmente el competidor más barato o el precio pagado la última vez. Los precios por encima de la referencia se sienten caros.</div></details>
+        </div>
+      </>)}
+
+      {/* ----- Pestaña: Basado en competencia ----- */}
+      {tab==='overview' && (<>
+        <div className="card" style={{background:'#fef3c7', borderColor:'#f59e0b'}}>
+          <p className="note" style={{color:'#78350f', margin:0}}>
+            <strong>⚠ Nota sobre los datos:</strong> los competidores publican <em>solo</em> tarifas diarias. Los precios de fin de semana y semana aquí son <strong>agregados estimados desde la tarifa diaria</strong> (≈ −5 % por día fin de semana, ≈ −30 % por día semana). Sobrescribe cualquier número en la pestaña <em>Posición y precios</em> si tienes mejor información.
+          </p>
+        </div>
+
+        <div className="card">
+          <h2>Selector de gráficos — Basado en competencia</h2>
+          <p className="note">Marca los gráficos que quieras ver. Activa los que necesites.</p>
+          <GraphPicker options={CHART_CATALOG.filter(c=>c.group==='overview')} selected={overviewGraphs} setSelected={setOverviewGraphs} />
+        </div>
+
+        {overviewGraphs.includes('wtp') && (
+          <div className="card">
+            <h3>Distribución DAP — {periodLabel} — {version}</h3>
+            <div className="explain">
+              Barras = cuántos de los 90 encuestados dijeron <em>este es el máximo que pagaría</em>. Línea verde = % de encuestados cuya respuesta está <em>al-precio-o-más</em> (curva acumulada de demanda). Línea naranja discontinua = <strong>tu precio actual de Nomade</strong>. Cuanto más a la izquierda quede tu línea naranja, más gente lo aceptará — pero menor margen.
+            </div>
+            <WTPChart />
+          </div>
+        )}
+        {overviewGraphs.includes('profit') && (
+          <div className="card">
+            <h3>Curva de beneficio — arrastra la línea verde para fijar nuestro precio</h3>
+            <div className="explain">
+              <strong>Interactivo:</strong> haz clic en cualquier punto del gráfico (o clic-y-arrastra) para mover la línea verde "Nuestro precio". Cada KPI de abajo se actualiza en vivo. Las líneas discontinuas de colores muestran dónde está cada <em>competidor</em> — lee la curva en la x de cada competidor para ver qué beneficio haríamos a su precio. Las líneas azul/naranja discontinuas son los óptimos Estándar / Premium.
+              <br/><em>Lectura rápida:</em> si nos movemos <em>hacia arriba</em> hacia un competidor y el beneficio sube, estamos infraprecio; si baja, estaríamos sobreprecio.
+            </div>
+            <ProfitChart interactive={true} />
+
+            <div className="grid-4" style={{marginTop:14}}>
+              <KPI label={`Beneficio a €${live.price}`} value={`€${live.profit.toLocaleString()}`} color={live.profit>=0?'green':'red'} />
+              <KPI label="Demanda esperada" value={`${live.demand.toLocaleString()} alquileres`} color="blue" />
+              <KPI label="Ingresos" value={`€${live.revenue.toLocaleString()}`} color="orange" />
+              <KPI label={`Perdido vs óptimo (€${live.peakPrice})`} value={live.lostVsPeak===0 ? '€0 (¡óptimo!)' : `−€${live.lostVsPeak.toLocaleString()}`} color={live.lostVsPeak===0?'green':'red'} />
+            </div>
+            <p className="hint" style={{marginTop:8}}>
+              La línea verde es <strong>arrastrable</strong>. Compara el beneficio en la línea discontinua de cada competidor: si Further VAN está en €{competitorPrice(period, 'furtherVAN')} y nuestra curva ahí es <em>más alta</em> que en €{live.price}, ganamos moviéndonos hacia ellos.
+            </p>
+
+            <div className="row" style={{marginTop:10}}>
+              <button className="btn primary" onClick={() => setOurPrices(prev => ({...prev, [period]: { ...prev[period], [version]: (version==='standard'?peakStd:peakPrem).price }}))}>Saltar al óptimo</button>
+              {COMP_META.map(c => (
+                <button key={c.k} className="btn" style={{borderColor:c.color, color:c.color}}
+                  onClick={() => setOurPrices(prev => ({...prev, [period]: { ...prev[period], [version]: competitorPrice(period, c.k) }}))}>
+                  Igualar {c.name} (€{competitorPrice(period, c.k)})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {overviewGraphs.includes('demand') && (
+          <div className="card">
+            <h3>Demanda + Ingresos</h3>
+            <div className="explain">
+              Azul = alquileres esperados a cada precio. Naranja = ingresos (precio × alquileres). Los ingresos suelen alcanzar el máximo <em>antes</em> de que muera la demanda — ese es el sweet spot.
+            </div>
+            <DemandChart />
+          </div>
+        )}
+        {overviewGraphs.includes('competitive') && (
+          <div className="card">
+            <h3>Posicionamiento competitivo</h3>
+            <div className="explain">
+              Barras = precios de cada empresa (sólido = Estándar, atenuado = Premium). Las líneas discontinuas marcan los <strong>precios óptimos de beneficio</strong>. Si la barra de Nomade queda muy <em>por encima</em> del óptimo, probablemente nuestro precio sea demasiado alto; muy <em>por debajo</em>, estaríamos infraprecio.
+            </div>
+            <CompetitiveChart />
+          </div>
+        )}
+        {overviewGraphs.includes('gap') && (
+          <div className="card">
+            <h3>Brecha vs competidores</h3>
+            <div className="explain">
+              Cuánto <em>por encima (+)</em> o <em>por debajo (−)</em> estamos de cada competidor. Una brecha negativa consistente indica un movimiento de penetración; una brecha positiva consistente indica posicionamiento premium.
+            </div>
+            <GapChart />
+          </div>
+        )}
+
+        {/* Bloque MAPAS DE POSICIONAMIENTO siempre visible para que el alumnado no se los salte */}
+        <div className="card" style={{background:'#f5f3ff', borderColor:'#7c3aed'}}>
+          <h2 style={{color:'#5b21b6'}}>Mapas de posicionamiento — por qué Nomade cobra menos</h2>
+          <div className="explain purple">
+            Cada mapa representa el <strong>precio diario (Y)</strong> frente a un atributo percibido (X).
+            Los mismos cuatro players — <span style={{color:PROFILES.nomade.color,fontWeight:700}}>Nomade</span>,
+            <span style={{color:PROFILES.furtherVAN.color,fontWeight:700}}> Further VAN</span>,
+            <span style={{color:PROFILES.peopleCamper.color,fontWeight:700}}> People Camper</span>,
+            <span style={{color:PROFILES.oceanVans.color,fontWeight:700}}> Ocean Vans</span> — aparecen como puntos de colores en cada gráfico.
+            Leerlos juntos responde a la Q1: el menor precio de Nomade se explica por la <strong>brecha de reconocimiento de marca</strong>, no por inferioridad de producto o costes (las empresas son de tamaño similar).
+          </div>
+          <div className="grid-3">
+            <div>
+              <h3 style={{color:'#5b21b6'}}>Precio × Reconocimiento de marca</h3>
+              <PositioningBrandChart h={260} />
+              <p className="note">Nomade abajo a la izquierda (3/10, €80). Competidores arriba a la derecha (8–9/10, €85–€105). <strong>Brecha de precio ≈ brecha de marca.</strong></p>
+            </div>
+            <div>
+              <h3 style={{color:'#5b21b6'}}>Precio × Sostenibilidad</h3>
+              <PositioningSustainChart h={260} />
+              <p className="note">Nomade arriba a la derecha (10/10) y aun así el más barato — <strong>la imagen se invierte</strong>. Justifica un movimiento de descremado en Premium.</p>
+            </div>
+            <div>
+              <h3 style={{color:'#5b21b6'}}>Precio × Diseño</h3>
+              <PositioningDesignChart h={260} />
+              <p className="note">Nomade con 9/10 en diseño, todavía a €80. La brecha de precios <strong>no</strong> se explica por inferioridad de producto.</p>
+            </div>
+          </div>
+          <div className="explain" style={{marginTop:14}}>
+            <strong>Implicación estratégica.</strong> Invertir en percepción de marca (narrativa, reseñas, presencia en canal) mueve a Nomade <em>hacia arriba</em> en el eje de precio en el mapa de marca sin erosionar la ventaja en los mapas de sostenibilidad y diseño. Esa es la justificación de un movimiento de descremado (+) en Premium y una penetración suave (−) solo en Estándar el primer año.
+          </div>
+        </div>
+
+        <div className="card">
+          <h3>Tabla detallada de precios — {periodLabel}</h3>
+          <p className="note" style={{marginBottom:10}}>
+            <strong>Nomade</strong> ofrece dos gamas (Estándar y Premium). Los tres <strong>competidores ofrecen una sola gama</strong> — no hay desdoble Std/Prem en su lado, y su tarifa publicada es <strong>solo diaria</strong>.
+          </p>
+          <table>
+            <thead><tr><th>Empresa</th><th>Gama</th><th>Precio (€)</th><th>Brecha vs Nomade Std</th><th>Brecha vs Nomade Prem</th></tr></thead>
+            <tbody>
+              {compData.map((c,i) => (
+                <tr key={i} style={c.isUs ? {background:'#fff7ed', fontWeight:600} : null}>
+                  <td><span style={{display:'inline-block', width:10, height:10, borderRadius:10, background:c.color, marginRight:8}}/>{c.name}</td>
+                  <td>{c.tier}</td>
+                  <td>€{c.price}</td>
+                  <td>{c.isUs ? '—' : `${ourPrices[period].standard - c.price >= 0 ? '+' : ''}€${ourPrices[period].standard - c.price}`}</td>
+                  <td>{c.isUs ? '—' : `${ourPrices[period].premium  - c.price >= 0 ? '+' : ''}€${ourPrices[period].premium  - c.price}`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </>)}
+
+      {/* ----- Pestaña: Factores psicológicos ----- */}
+      {tab==='psych' && (<>
+        <div className="card">
+          <h2>Workflow — cómo encaja esta pestaña en tu decisión de pricing</h2>
+          <div className="explain">
+            <strong>1.</strong> Cada control de abajo está <strong>precargado desde tu posición actual</strong> en las pestañas Basado en competencia / Posición — así el sandwich, el precio charm, la referencia y el lado "actual" de la Teoría de las Perspectivas parten de los precios de Nomade que ya has fijado.<br/>
+            <strong>2.</strong> Experimenta libremente (arrastra, escribe, prueba charm €79, cambia el ancla…).<br/>
+            <strong>3.</strong> Cuando estés conforme, haz clic en <em>"Aplicar a Estándar"</em> o <em>"Aplicar a Premium"</em> dentro de cada tarjeta — esto empuja el número probado hacia <strong>Posición y precios</strong> para el periodo activo, de modo que tu descarga lo refleje.
+          </div>
+          <div className="row" style={{marginTop:10}}>
+            <button className="btn" onClick={()=>setPsychSynced(v=>v+1)}>Resetear todos los controles psicológicos desde la posición actual</button>
+          </div>
+          <div className="grid-4" style={{marginTop:10}}>
+            <KPI label={`Nuestro Std (${period})`} value={`€${ourPrices[period].standard}`} color="blue" />
+            <KPI label={`Nuestro Prem (${period})`} value={`€${ourPrices[period].premium}`} color="orange" />
+            <KPI label="Competidor más barato" value={`€${Math.min(...COMP_META.map(c=>competitorPrice(period, c.k)))}`} />
+            <KPI label="Competidor más caro" value={`€${Math.max(...COMP_META.map(c=>competitorPrice(period, c.k)))}`} />
+          </div>
+        </div>
+
+        <div className="card">
+          <h2>Selector de gráficos — Factores psicológicos</h2>
+          <p className="note">Marca los efectos con los que quieras experimentar.</p>
+          <GraphPicker options={CHART_CATALOG.filter(c=>c.group==='psych')} selected={psychGraphs} setSelected={setPsychGraphs} />
+        </div>
+
+        {psychGraphs.includes('anchor') && (
+          <div className="card">
+            <h3>Anclaje — sandwich Good-Better-Best</h3>
+            <div className="explain orange">
+              <strong>Idea:</strong> ofrece tres niveles. El <em>premium</em> actúa como ancla (hace que el medio parezca asequible); el <em>básico</em> hace que el medio parezca que merece la subida. La mayoría de clientes elige el medio — <strong>diseña el medio para que sea tu precio objetivo</strong>.
+              <br/><strong>Por defecto:</strong> Básico = competidor más barato, Medio = nuestro Estándar, Premium = nuestro Premium.
+            </div>
+            <div className="grid-3">
+              <div><label>Básico (€)</label><input type="number" value={anchorTier.basic} onChange={e=>setAnchorTier({...anchorTier, basic:+e.target.value})}/></div>
+              <div><label>Medio — objetivo (€)</label><input type="number" value={anchorTier.mid} onChange={e=>setAnchorTier({...anchorTier, mid:+e.target.value})}/></div>
+              <div><label>Anclaje Premium (€)</label><input type="number" value={anchorTier.premium} onChange={e=>setAnchorTier({...anchorTier, premium:+e.target.value})}/></div>
+            </div>
+            <div style={{marginTop:12}}><AnchorChart /></div>
+            <div className="row" style={{marginTop:10}}>
+              <button className="btn primary" onClick={()=>setOurPrices(prev=>({...prev,[period]:{...prev[period], standard: anchorTier.mid}}))}>Aplicar medio €{anchorTier.mid} → Nuestro Estándar</button>
+              <button className="btn orange"  onClick={()=>setOurPrices(prev=>({...prev,[period]:{...prev[period], premium: anchorTier.premium}}))}>Aplicar premium €{anchorTier.premium} → Nuestro Premium</button>
+            </div>
+          </div>
+        )}
+
+        {psychGraphs.includes('charm') && (
+          <div className="card">
+            <h3>Charm pricing — efecto del dígito 9</h3>
+            <div className="explain orange">
+              <strong>Idea:</strong> €79 se siente más cerca de €70 que de €80 porque el dígito de la izquierda se procesa primero. El simulador aplica un <strong>+7% de uplift de percepción</strong> cuando el dígito de la izquierda baja.
+              <br/><strong>Por defecto:</strong> precio redondo = nuestro Estándar actual; precio charm = redondo − 1.
+            </div>
+            <div className="grid-2">
+              <div><label>Precio redondo (€)</label><input type="number" value={charmTest.round} onChange={e=>setCharmTest({...charmTest, round:+e.target.value})}/></div>
+              <div><label>Precio charm (€)</label><input type="number" value={charmTest.charm} onChange={e=>setCharmTest({...charmTest, charm:+e.target.value})}/></div>
+            </div>
+            <div style={{marginTop:12}}><CharmChart /></div>
+            <div className="row" style={{marginTop:10}}>
+              <button className="btn primary" onClick={()=>setOurPrices(prev=>({...prev,[period]:{...prev[period], standard: charmTest.charm}}))}>Aplicar charm €{charmTest.charm} → Nuestro Estándar</button>
+              <button className="btn orange"  onClick={()=>setOurPrices(prev=>({...prev,[period]:{...prev[period], premium: charmTest.charm}}))}>Aplicar charm €{charmTest.charm} → Nuestro Premium</button>
+            </div>
+          </div>
+        )}
+
+        {psychGraphs.includes('prospect') && (
+          <div className="card">
+            <h3>Teoría de las Perspectivas — las pérdidas pesan más que las ganancias</h3>
+            <div className="explain orange">
+              <strong>Idea:</strong> una subida de €X (pérdida para el cliente) duele ~2,25× más de lo que agrada un descuento de €X (ganancia). Úsalo para decidir <em>si</em> subir un precio y <em>cómo</em> enmarcarlo.
+              <br/><strong>Cómo se usa:</strong> "<em>Desde</em>" = precio de referencia que el cliente tiene en mente (habitualmente tu precio actual). "<em>Hasta</em>" = lo que quieres cobrar. La línea discontinua muestra dónde queda el cambio en la función de valor. Positivo → ganancia (verde). Negativo → pérdida (rojo).
+            </div>
+            <div className="grid-2">
+              <div><label>Desde — precio actual / referencia (€)</label><input type="number" value={prospectFromTo.from} onChange={e=>setProspectFromTo({...prospectFromTo, from:+e.target.value})}/></div>
+              <div><label>Hasta — nuevo precio propuesto (€)</label><input type="number" value={prospectFromTo.to} onChange={e=>setProspectFromTo({...prospectFromTo, to:+e.target.value})}/></div>
+            </div>
+            <div style={{marginTop:12}}><ProspectChart /></div>
+            {(() => {
+              const d = prospectFromTo.to - prospectFromTo.from; /* +ve = subida de precio */
+              const customerFelt = Math.round(prospectValue(-d) * 10)/10;
+              return (
+                <div className="explain" style={{borderLeftColor: d>0 ? '#dc2626' : '#059669', background: d>0 ? '#fef2f2' : '#ecfdf5'}}>
+                  {d === 0 ? (<>Sin cambio — nada percibido.</>) : d > 0 ? (
+                    <>Estás <strong>subiendo el precio en €{d}</strong>. El cliente lo percibe como una pérdida de ≈ <strong>{Math.abs(customerFelt)}</strong> unidades de valor. Para compensarla harías falta una ganancia de ≈ <strong>€{Math.round(Math.abs(d)*2.25*10)/10}</strong> — o, mejor, <em>reformular la subida como un descuento que se retira</em>.</>
+                  ) : (
+                    <>Estás <strong>bajando el precio en €{Math.abs(d)}</strong>. El cliente percibe una ganancia de ≈ <strong>{customerFelt}</strong> unidades de valor. Recuerda: las ganancias se sienten con menos intensidad que las pérdidas del mismo tamaño.</>
+                  )}
+                </div>
+              );
+            })()}
+            <div className="row" style={{marginTop:10}}>
+              <button className="btn primary" onClick={()=>setOurPrices(prev=>({...prev,[period]:{...prev[period], standard: prospectFromTo.to}}))}>Aplicar €{prospectFromTo.to} → Nuestro Estándar</button>
+              <button className="btn orange"  onClick={()=>setOurPrices(prev=>({...prev,[period]:{...prev[period], premium: prospectFromTo.to}}))}>Aplicar €{prospectFromTo.to} → Nuestro Premium</button>
+            </div>
+          </div>
+        )}
+
+        {psychGraphs.includes('reference') && (
+          <div className="card">
+            <h3>Precio de referencia</h3>
+            <div className="explain orange">
+              <strong>Idea:</strong> los clientes comparan nuestro precio con un benchmark mental (competidor más barato, tarifa del año pasado, etc.). Fija la referencia y observa cuántos encuestados quedan <em>por debajo</em>, <em>en</em> o <em>por encima</em> de ella.
+              <br/><strong>Por defecto:</strong> competidor más barato en el periodo activo.
+            </div>
+            <div className="grid-2">
+              <div style={{maxWidth:260}}>
+                <label>Precio de referencia (€)</label>
+                <input type="number" value={refPrice} onChange={e=>setRefPrice(+e.target.value)} />
+              </div>
+              <div style={{alignSelf:'end'}}>
+                {COMP_META.map(c => (
+                  <button key={c.k} className="btn" style={{borderColor:c.color, color:c.color, marginRight:6}}
+                    onClick={()=>setRefPrice(competitorPrice(period, c.k))}>
+                    Usar {c.name} €{competitorPrice(period, c.k)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{marginTop:12}}><ReferenceChart /></div>
+            <div className="row" style={{marginTop:10}}>
+              <button className="btn primary" onClick={()=>setOurPrices(prev=>({...prev,[period]:{...prev[period], standard: refPrice}}))}>Igualar referencia €{refPrice} → Nuestro Estándar</button>
+              <button className="btn orange"  onClick={()=>setOurPrices(prev=>({...prev,[period]:{...prev[period], premium: refPrice}}))}>Igualar referencia €{refPrice} → Nuestro Premium</button>
+            </div>
+          </div>
+        )}
+      </>)}
+
+      {/* ----- Pestaña: Posición y precios ----- */}
+      {tab==='position' && (<>
+        <div className="card">
+          <h2>Posiciona el precio en el gráfico — {periodLabel} • {version}</h2>
+          <div className="explain green">
+            <strong>Arrastra la línea verde.</strong> Cada input numérico se sincroniza automáticamente. Líneas discontinuas = los tres competidores en su precio actual; azul/naranja discontinuas = óptimo de beneficio Estándar / Premium.
+          </div>
+          <ProfitChart interactive={true} h={360} />
+          <div className="grid-4" style={{marginTop:14}}>
+            <KPI label={`Beneficio a €${live.price}`} value={`€${live.profit.toLocaleString()}`} color={live.profit>=0?'green':'red'} />
+            <KPI label="Demanda esperada" value={`${live.demand.toLocaleString()} alquileres`} color="blue" />
+            <KPI label="Ingresos" value={`€${live.revenue.toLocaleString()}`} color="orange" />
+            <KPI label={`Perdido vs óptimo (€${live.peakPrice})`} value={live.lostVsPeak===0 ? '€0 (¡óptimo!)' : `−€${live.lostVsPeak.toLocaleString()}`} color={live.lostVsPeak===0?'green':'red'} />
+          </div>
+        </div>
+
+        <div className="card">
+          <h2>Inputs numéricos — todos los periodos</h2>
+          <p className="note">Estos son los precios que <strong>tú</strong> quieres proponer. Viajan con la exportación a Excel para que puedas compartir o comparar escenarios.</p>
+          <div className="grid-3">
+            {PERIODS.map(p => (
+              <div key={p.k} className="box-soft">
+                <h3>{p.label}</h3>
+                <label>Estándar (€)</label>
+                <input type="number" value={ourPrices[p.k].standard} onChange={e=>setOurPrices(prev=>({...prev,[p.k]:{...prev[p.k],standard:+e.target.value}}))}/>
+                <label style={{marginTop:8}}>Premium (€)</label>
+                <input type="number" value={ourPrices[p.k].premium}  onChange={e=>setOurPrices(prev=>({...prev,[p.k]:{...prev[p.k],premium:+e.target.value}}))}/>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <h2>Precios de competidores — {periodLabel}</h2>
+          <p className="note">
+            Los competidores ofrecen <strong>una sola gama</strong> (sin desdoble Estándar / Premium) y publican <strong>solo tarifas diarias</strong>.
+            Los valores de fin de semana / semana son una proyección de referencia (≈ −5 % / −30 % por día). Actualízalos si tienes mejor información.
+          </p>
+          <div className="grid-3">
+            {COMP_META.map(c => (
+              <div key={c.k} className="box-soft" style={{borderColor:c.color}}>
+                <h3 style={{color:c.color}}>{c.name}</h3>
+                <label>Tarifa diaria — gama única (€)</label>
+                <input type="number" value={competitorPrice(period, c.k)} onChange={e=>updateCompetitor(c.k,'price',e.target.value)}/>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <h2>Nota del analista</h2>
+          <p className="note">Texto libre — razonamiento, supuestos, alineamiento con stakeholders, etc. Viaja dentro del Excel.</p>
+          <textarea rows="4" value={positionNote} onChange={e=>setPositionNote(e.target.value)}
+            placeholder="ej. Hemos decidido situarnos €5 por debajo de People Camper para abrir el segmento de fin de semana."/>
+        </div>
+      </>)}
+
+      {/* ----- Pestaña: Respuestas del caso ----- */}
+      {tab==='answers' && (<>
+        <div className="card">
+          <h2>Entregables del caso — las cuatro preguntas formales (Nomade v3.0)</h2>
+          <div className="explain">
+            Estas son las cuatro preguntas formales del caso Nomade Vans (v3.0). Escribe tu respuesta debajo — todo lo que escribas aquí se guarda con la sesión y se <strong>exporta al Excel descargado</strong> en una hoja dedicada "Respuestas del caso", junto con tu posición, los precios de competidores y todos los gráficos.
+          </div>
+          <p className="note">Usa las pestañas interactivas (Basado en competencia, Factores psicológicos, Posición y precios) para producir la evidencia y luego resúmela aquí.</p>
+        </div>
+
+        {CASE_QUESTIONS.map((q, idx) => (
+          <div className="card" key={q.id}>
+            <h3 style={{color:'#f97316'}}>{q.id} — {q.title}</h3>
+            <div className="explain orange"><strong>Enunciado:</strong> {q.prompt}</div>
+            <div className="explain"><strong>Pista del simulador:</strong> {q.hint}</div>
+            <label style={{marginTop:8}}>Tu respuesta</label>
+            <textarea rows={idx===0 ? 8 : 10}
+              value={caseAnswers[q.id.toLowerCase()]}
+              onChange={e => setCaseAnswers(prev => ({...prev, [q.id.toLowerCase()]: e.target.value}))}
+              placeholder={`Responde a ${q.id} aquí — el texto viaja a tu descarga de Excel.`} />
+            <p className="hint">{caseAnswers[q.id.toLowerCase()].length} caracteres · auto-guardado en la sesión.</p>
+          </div>
+        ))}
+
+        <div className="card">
+          <h3>Cuando estés listo</h3>
+          <p className="note">Ve a <strong>Descargar Excel</strong> para obtener el .xlsx con tus respuestas, posición y gráficos. El fichero contendrá una hoja adicional llamada <em>Respuestas del caso</em>.</p>
+        </div>
+      </>)}
+
+      {/* ----- Pestaña: Descargar Excel ----- */}
+      {tab==='download' && (
+        <div className="card">
+          <h2>Descargar — el fichero Excel es el entregable completo</h2>
+          <div className="explain green">
+            <strong>Entrega solo este fichero.</strong> No hace falta documento Word ni presentación. El <code>.xlsx</code> contiene toda la evidencia: contexto del caso, preguntas, respuestas agregadas, tu posición final, tus respuestas escritas del caso y los nueve gráficos como imagen.
+          </div>
+          <p className="note">
+            8 hojas — se abre nativamente en Excel, Numbers, Google Sheets y LibreOffice.
+          </p>
+          <div className="grid-2">
+            <div className="box-soft">
+              <h3>Qué hay dentro del fichero — 8 hojas</h3>
+              <ul style={{margin:'4px 0 0 18px', padding:0}}>
+                <li><strong>Guía</strong> — contexto del caso, nota de datos y vista activa</li>
+                <li><strong>Preguntas</strong> — las 13 preguntas de la encuesta (solo referencia)</li>
+                <li><strong>Respuestas — Día / Fin de semana / Semana</strong> — tablas DAP agregadas</li>
+                <li><strong>Posición</strong> — tus precios, competidores, KPIs, parámetros psicológicos, nota del analista</li>
+                <li><strong>Respuestas del caso</strong> — tus respuestas escritas a las tres preguntas formales</li>
+                <li><strong>Gráficos</strong> — los 9 gráficos del simulador como imágenes embebidas</li>
+              </ul>
+            </div>
+            <div className="box-soft">
+              <h3>Antes de descargar</h3>
+              <p className="note">Los gráficos del fichero reflejan el <strong>estado actual</strong> del simulador — periodo activo, versión, precios de competencia e inputs psicológicos. Elige primero la vista que quieras y luego haz clic en descargar.</p>
+              <button className="btn primary" onClick={buildExcel} disabled={downloading}>
+                {downloading ? 'Generando…' : 'Descargar Excel (.xlsx)'}
+              </button>
+              {downloadStatus && <div className={`status ${downloadStatus.kind==='err'?'err':downloadStatus.kind==='ok'?'ok':''}`}>{downloadStatus.text}</div>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gráficos offscreen — la fuente de las capturas PNG que se incluyen en el Excel */}
+      <div className="offscreen" aria-hidden="true">
+        {CHART_CATALOG.map(c => (
+          <div key={c.k} id={'cap-'+c.k} style={{width:860, height:380, background:'#fff', padding:8}}>
+            <c.C h={360} w={844} />
+          </div>
+        ))}
+      </div>
+
+      <div className="footer">© César Moreno Pascual PhD — Simulador de precios Nomade Vans • Construido con React + Recharts + ExcelJS</div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
