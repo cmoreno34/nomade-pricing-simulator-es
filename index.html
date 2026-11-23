@@ -11,6 +11,8 @@
 <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root {
     --c-bg: #f6f7fb;
@@ -321,7 +323,7 @@ function App() {
   const [version, setVersion] = useState('standard');
   const [competitors, setCompetitors] = useState(COMPETITORS_DEFAULT);
   const [ourPrices, setOurPrices] = useState(OUR_DEFAULT);
-  const [tab, setTab] = useState('guide');
+  const [tab, setTab] = useState('flow');
 
   const [overviewGraphs, setOverviewGraphs] = useState(['wtp','profit','competitive','posBrand','posSust','posDesign']);
   const [psychGraphs, setPsychGraphs] = useState(['anchor','charm','prospect','reference']);
@@ -332,6 +334,14 @@ function App() {
   const [prospectFromTo, setProspectFromTo] = useState({ from: 80, to: 90 });
   const [positionNote, setPositionNote] = useState('');
   const [psychSynced, setPsychSynced] = useState(0); /* incrementar fuerza el reset desde la posición */
+
+  /* Entrega para Blackboard — datos del alumno y estado de la generación del PDF */
+  const [student, setStudent] = useState({ name: '', group: '' });
+  const [pdfBuilding, setPdfBuilding] = useState(false);
+  const [pdfStatus, setPdfStatus] = useState(null);
+  /* Checklist del flujo guiado — el alumno marca cada paso al cerrarlo */
+  const [flowChecks, setFlowChecks] = useState({ s1:false, s2:false, s3:false, s4:false, s5:false, s6:false, s7:false, s8:false, s9:false });
+  const toggleFlow = (k) => setFlowChecks(prev => ({ ...prev, [k]: !prev[k] }));
 
   /* Entregables del caso — 4 preguntas formales de Nomade v3.0 */
   const [caseAnswers, setCaseAnswers] = useState({ q1: '', q2: '', q3: '', q4: '' });
@@ -944,6 +954,168 @@ function App() {
   };
 
   /* ============================================================
+     Entregable PDF — para subir a Blackboard
+     ============================================================ */
+  const buildPDF = async () => {
+    setPdfBuilding(true);
+    setPdfStatus({kind:'info', text:'Generando PDF…'});
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const marginX = 48;
+      let y = 56;
+
+      /* ---- Portada ---- */
+      doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(30, 58, 138);
+      doc.text('Nomade Vans — Entregable del caso', marginX, y); y += 24;
+      doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(100, 116, 139);
+      doc.text('Pricing basado en competencia + Factores psicológicos', marginX, y); y += 24;
+
+      doc.setDrawColor(226, 232, 240); doc.line(marginX, y, pageW - marginX, y); y += 20;
+
+      doc.setFontSize(11); doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica','bold'); doc.text('Alumno/a:', marginX, y);
+      doc.setFont('helvetica','normal'); doc.text(student.name || '(sin nombre)', marginX + 80, y); y += 18;
+      doc.setFont('helvetica','bold'); doc.text('Grupo / curso:', marginX, y);
+      doc.setFont('helvetica','normal'); doc.text(student.group || '(sin grupo)', marginX + 100, y); y += 18;
+      doc.setFont('helvetica','bold'); doc.text('Fecha:', marginX, y);
+      doc.setFont('helvetica','normal'); doc.text(new Date().toLocaleDateString('es-ES'), marginX + 80, y); y += 28;
+
+      /* ---- Contexto del caso ---- */
+      doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(30, 58, 138);
+      doc.text('Contexto del caso', marginX, y); y += 18;
+      doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(15, 23, 42);
+      const ctx = [
+        'Nomade Vans — start-up española que camperiza furgonetas sostenibles. Dos gamas (Estándar',
+        'y Premium) × tres periodos (Día, Fin de semana 2 noches, Semana 6 noches). Encuesta de DAP a 95',
+        'personas. Tres competidores (Further VAN, People Camper, Ocean Vans) con tarifa diaria única.'
+      ];
+      ctx.forEach(line => { doc.text(line, marginX, y); y += 14; });
+      y += 10;
+
+      /* ---- Tabla de propuesta de precios 2×3 ---- */
+      doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(30, 58, 138);
+      doc.text('Propuesta de precios (2 × 3)', marginX, y); y += 8;
+      doc.autoTable({
+        startY: y + 6,
+        head: [['Periodo', 'Estándar (€)', 'Premium (€)', 'Brecha Prem−Std (€)']],
+        body: PERIODS.map(p => [
+          p.label,
+          ourPrices[p.k].standard,
+          ourPrices[p.k].premium,
+          ourPrices[p.k].premium - ourPrices[p.k].standard
+        ]),
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 10, cellPadding: 6 },
+        margin: { left: marginX, right: marginX }
+      });
+      y = doc.lastAutoTable.finalY + 18;
+
+      /* ---- KPIs y comparación con competidores (periodo Día) ---- */
+      doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(30, 58, 138);
+      doc.text('Comparación con la competencia (Diario)', marginX, y); y += 8;
+      doc.autoTable({
+        startY: y + 6,
+        head: [['Empresa', 'Gama', 'Precio diario (€)', 'Brecha vs Nomade Std', 'Brecha vs Nomade Prem']],
+        body: [
+          ['Nomade',         'Estándar',      ourPrices.day.standard, '—', '—'],
+          ['Nomade',         'Premium',       ourPrices.day.premium,  '—', '—'],
+          ...COMP_META.map(c => {
+            const p = competitorPrice('day', c.k);
+            return [c.name, 'Tarifa única', p,
+                    (ourPrices.day.standard - p >= 0 ? '+' : '') + '€' + (ourPrices.day.standard - p),
+                    (ourPrices.day.premium  - p >= 0 ? '+' : '') + '€' + (ourPrices.day.premium  - p)];
+          })
+        ],
+        headStyles: { fillColor: [249, 115, 22], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 9, cellPadding: 5 },
+        margin: { left: marginX, right: marginX }
+      });
+      y = doc.lastAutoTable.finalY + 18;
+
+      /* ---- KPIs ---- */
+      doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(30, 58, 138);
+      doc.text('KPIs clave (periodo activo: ' + period + ')', marginX, y); y += 8;
+      doc.autoTable({
+        startY: y + 6,
+        head: [['Indicador', 'Valor']],
+        body: [
+          ['Precio óptimo Std / Día (DAP)',  '€' + peakStd.price],
+          ['Precio óptimo Prem / Día (DAP)', '€' + peakPrem.price],
+          ['% Aceptación — Std actual',  pctAcceptStd.toFixed(1) + ' %'],
+          ['% Aceptación — Prem actual', pctAcceptPrem.toFixed(1) + ' %'],
+          ['Brecha vs competidor medio — Std', (gapStd >= 0 ? '+' : '') + '€' + gapStd.toFixed(1)],
+          ['Brecha vs competidor medio — Prem', (gapPrem >= 0 ? '+' : '') + '€' + gapPrem.toFixed(1)],
+        ],
+        headStyles: { fillColor: [5, 150, 105], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 10, cellPadding: 5 },
+        margin: { left: marginX, right: marginX }
+      });
+      y = doc.lastAutoTable.finalY + 18;
+
+      /* ---- Nota del analista ---- */
+      if (y > 700) { doc.addPage(); y = 56; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(30, 58, 138);
+      doc.text('Nota del analista', marginX, y); y += 14;
+      doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(15, 23, 42);
+      const noteText = positionNote || '(sin nota)';
+      const noteLines = doc.splitTextToSize(noteText, pageW - 2*marginX);
+      doc.text(noteLines, marginX, y); y += noteLines.length * 13 + 16;
+
+      /* ---- Respuestas del caso (nueva página por pregunta si no cabe) ---- */
+      doc.addPage(); y = 56;
+      doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(30, 58, 138);
+      doc.text('Respuestas a las 4 preguntas formales', marginX, y); y += 22;
+
+      CASE_QUESTIONS.forEach((q, idx) => {
+        const answer = caseAnswers[q.id.toLowerCase()] || '(sin respuesta)';
+        /* Título */
+        doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(249, 115, 22);
+        if (y > 740) { doc.addPage(); y = 56; }
+        doc.text(`${q.id} — ${q.title}`, marginX, y); y += 16;
+        /* Enunciado */
+        doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+        const promptLines = doc.splitTextToSize('Enunciado: ' + q.prompt, pageW - 2*marginX);
+        if (y + promptLines.length * 11 > 780) { doc.addPage(); y = 56; }
+        doc.text(promptLines, marginX, y); y += promptLines.length * 11 + 10;
+        /* Respuesta */
+        doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(15, 23, 42);
+        if (y > 760) { doc.addPage(); y = 56; }
+        doc.text('Respuesta del alumno:', marginX, y); y += 14;
+        doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(15, 23, 42);
+        const ansLines = doc.splitTextToSize(answer, pageW - 2*marginX);
+        /* Dividir en páginas si la respuesta es muy larga */
+        const lineH = 13;
+        for (const ln of ansLines) {
+          if (y > 780) { doc.addPage(); y = 56; }
+          doc.text(ln, marginX, y); y += lineH;
+        }
+        y += 18;
+      });
+
+      /* ---- Pie de página en cada página ---- */
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(148, 163, 184);
+        doc.text(`Nomade Vans — Simulador de precios · ${student.name || 'Alumno/a'} · pág. ${i}/${pageCount}`,
+                 marginX, doc.internal.pageSize.getHeight() - 24);
+      }
+
+      const safeName = (student.name || 'alumno').replace(/[^a-z0-9\-_]/gi, '_').toLowerCase();
+      const filename = `nomade-entregable-${safeName}-${new Date().toISOString().slice(0,10)}.pdf`;
+      doc.save(filename);
+      setPdfStatus({kind:'ok', text:`Descargado ${filename}`});
+    } catch (err) {
+      console.error(err);
+      setPdfStatus({kind:'err', text:'Error: ' + (err.message || err)});
+    } finally {
+      setPdfBuilding(false);
+    }
+  };
+
+  /* ============================================================
      RENDER
      ============================================================ */
   const periodLabel = PERIODS.find(p=>p.k===period).label;
@@ -992,13 +1164,184 @@ function App() {
 
       {/* Pestañas */}
       <div className="tab-row">
+        <button className={`tab ${tab==='flow'?'active':''}`}     onClick={()=>setTab('flow')}>🧭 Flujo guiado</button>
         <button className={`tab ${tab==='guide'?'active':''}`}    onClick={()=>setTab('guide')}>Cómo usarlo</button>
         <button className={`tab ${tab==='overview'?'active':''}`} onClick={()=>setTab('overview')}>Basado en competencia</button>
         <button className={`tab ${tab==='psych'?'active':''}`}    onClick={()=>setTab('psych')}>Factores psicológicos</button>
         <button className={`tab ${tab==='position'?'active':''}`} onClick={()=>setTab('position')}>Posición y precios</button>
         <button className={`tab ${tab==='answers'?'active':''}`}  onClick={()=>setTab('answers')}>Respuestas del caso</button>
         <button className={`tab ${tab==='download'?'active':''}`} onClick={()=>setTab('download')}>Descargar Excel</button>
+        <button className={`tab ${tab==='deliver'?'active':''}`}  onClick={()=>setTab('deliver')}>📄 Entregable PDF</button>
       </div>
+
+      {/* ----- Pestaña: Flujo guiado (circular) ----- */}
+      {tab==='flow' && (<>
+        <div className="card" style={{background:'linear-gradient(135deg, #eff6ff 0%, #fff7ed 100%)', borderColor:'#2563eb'}}>
+          <h2 style={{color:'#1e3a8a', marginBottom:4}}>🧭 Flujo guiado — razonamiento circular de precios</h2>
+          <p className="note" style={{color:'#1e3a8a'}}>
+            Recorre los <strong>9 pasos</strong> en orden. Cada paso te dice qué observar, qué hacer en el simulador y qué pregunta responder antes de pasar al siguiente. El flujo es <strong>circular</strong>: fijamos el <em>diario</em> con toda la evidencia, comprobamos coherencia Std/Prem, extrapolamos a fin de semana/semana y <em>volvemos</em> a validar que la propuesta cuenta una sola historia.
+          </p>
+          <div className="grid-4" style={{marginTop:10}}>
+            <KPI label="Pasos completados" value={`${Object.values(flowChecks).filter(Boolean).length} / 9`} color={Object.values(flowChecks).every(Boolean) ? 'green' : 'blue'} />
+            <KPI label={`Nuestro Std / Día`} value={`€${ourPrices.day.standard}`} color="blue" />
+            <KPI label={`Nuestro Prem / Día`} value={`€${ourPrices.day.premium}`} color="orange" />
+            <KPI label="Brecha Prem − Std" value={`€${ourPrices.day.premium - ourPrices.day.standard}`} color={(ourPrices.day.premium - ourPrices.day.standard) >= 20 ? 'green' : 'red'} />
+          </div>
+        </div>
+
+        {/* PASO 1 */}
+        <div className="card">
+          <h3 style={{color:'#2563eb'}}>Paso 1 — Observa los datos (DAP y competencia, Diario)</h3>
+          <div className="explain">
+            <strong>Qué observar:</strong> la <em>distribución DAP</em> de los 95 encuestados para Estándar y Premium, y los <em>precios diarios</em> de los tres competidores (tarifa única). No decidas aún — solo entiende el terreno.
+            <br/><strong>Herramienta:</strong> pestaña <em>Basado en competencia</em> → marca "Distribución DAP" y "Posicionamiento competitivo".
+            <br/><strong>Pregunta clave:</strong> ¿en qué rango está la DAP? ¿Dónde tarifa la competencia respecto a ese rango?
+          </div>
+          <div className="row" style={{marginTop:8}}>
+            <button className="btn primary" onClick={()=>setTab('overview')}>Abrir "Basado en competencia"</button>
+            <label className="chip" onClick={()=>toggleFlow('s1')}><input type="checkbox" checked={flowChecks.s1} readOnly /> Paso 1 hecho</label>
+          </div>
+        </div>
+
+        {/* PASO 2 */}
+        <div className="card">
+          <h3 style={{color:'#2563eb'}}>Paso 2 — Razona: ¿coste o diferenciación?</h3>
+          <div className="explain">
+            <strong>Hipótesis:</strong> los competidores están establecidos → flota amortizada y canales con marca ⇒ <em>menor coste variable</em> pero <em>mayores costes fijos de marketing y marca</em>. Nomade es nuevo → coste variable similar, mayor coste fijo por unidad (flota reducida), pero <strong>objetivamente más diferenciado</strong> en sostenibilidad (10/10) y diseño (9/10).
+            <br/><strong>Herramienta:</strong> misma pestaña, sección <em>Mapas de posicionamiento</em> (Precio × Marca, Sostenibilidad, Diseño).
+            <br/><strong>Pregunta clave:</strong> ¿la brecha de precio viene de <em>costes</em> o de <em>reconocimiento de marca</em>? Si es de marca, la posición puede moverse al cerrar esa brecha con narrativa, no con un recorte agresivo.
+          </div>
+          <div className="row" style={{marginTop:8}}>
+            <button className="btn" onClick={()=>setTab('overview')}>Ver los 3 mapas</button>
+            <label className="chip" onClick={()=>toggleFlow('s2')}><input type="checkbox" checked={flowChecks.s2} readOnly /> Paso 2 hecho</label>
+          </div>
+        </div>
+
+        {/* PASO 3 */}
+        <div className="card">
+          <h3 style={{color:'#2563eb'}}>Paso 3 — Curva precio-beneficio (Estándar / Diario)</h3>
+          <div className="explain">
+            <strong>Qué hacer:</strong> con <em>Versión = Estándar</em> y <em>Periodo = Diario</em> arriba, arrastra la línea verde en la curva de beneficio. Prueba <em>Saltar al óptimo</em> y los botones <em>Igualar competidor</em> para leer el beneficio en cada precio competidor.
+            <br/><strong>Pregunta clave:</strong> ¿el óptimo DAP está > o < los precios de la competencia? Si es menor (escenario b.3: Popt &lt; C por marca percibida débil pese a mejor producto) → <em>descremado moderado</em> en Premium y <em>penetración suave</em> en Estándar, no penetración agresiva.
+          </div>
+          <div className="grid-4" style={{marginTop:10}}>
+            <KPI label="Óptimo Std / Día" value={`€${peakStd.price}`} color="blue" />
+            <KPI label="Óptimo Prem / Día" value={`€${peakPrem.price}`} color="orange" />
+            <KPI label="Comp. más barato" value={`€${Math.min(...COMP_META.map(c=>competitorPrice('day', c.k)))}`} />
+            <KPI label="Comp. más caro" value={`€${Math.max(...COMP_META.map(c=>competitorPrice('day', c.k)))}`} />
+          </div>
+          <div className="row" style={{marginTop:8}}>
+            <button className="btn primary" onClick={()=>{setPeriod('day'); setVersion('standard'); setTab('overview');}}>Ir a la curva (Std / Día)</button>
+            <label className="chip" onClick={()=>toggleFlow('s3')}><input type="checkbox" checked={flowChecks.s3} readOnly /> Paso 3 hecho</label>
+          </div>
+        </div>
+
+        {/* PASO 4 */}
+        <div className="card">
+          <h3 style={{color:'#f97316'}}>Paso 4 — Ajuste psicológico (Estándar / Diario)</h3>
+          <div className="explain orange">
+            <strong>Qué hacer:</strong> reajusta el Estándar diario con una táctica psicológica — charm pricing (€79 vs €80), anclaje (Básico/Medio/Premium) o referencia (competidor más barato). Experimenta y haz clic en <em>Aplicar a Estándar</em>.
+            <br/><strong>Pregunta clave:</strong> ¿el precio final queda en terminación 9 sin erosionar el margen? ¿Hay una ancla superior (Premium) que haga el Std parecer buena opción?
+          </div>
+          <div className="row" style={{marginTop:8}}>
+            <button className="btn orange" onClick={()=>{setPeriod('day'); setVersion('standard'); setTab('psych');}}>Abrir "Factores psicológicos"</button>
+            <label className="chip" onClick={()=>toggleFlow('s4')}><input type="checkbox" checked={flowChecks.s4} readOnly /> Paso 4 hecho</label>
+          </div>
+        </div>
+
+        {/* PASO 5 */}
+        <div className="card">
+          <h3 style={{color:'#2563eb'}}>Paso 5 — Repite 3+4 para Premium / Diario</h3>
+          <div className="explain">
+            <strong>Qué hacer:</strong> cambia la versión a <em>Premium</em> arriba y vuelve a hacer el mismo recorrido — curva de beneficio y ajuste psicológico. Compara contra el <em>extremo bajo</em> de competidores si quieres cerrar brecha, o mantén prima si tu narrativa de sostenibilidad lo sostiene.
+            <br/><strong>Pregunta clave:</strong> ¿tu Premium queda razonable frente al competidor más barato (€{Math.min(...COMP_META.map(c=>competitorPrice('day', c.k)))}) y al más caro (€{Math.max(...COMP_META.map(c=>competitorPrice('day', c.k)))})?
+          </div>
+          <div className="row" style={{marginTop:8}}>
+            <button className="btn primary" onClick={()=>{setPeriod('day'); setVersion('premium'); setTab('overview');}}>Abrir curva Premium</button>
+            <button className="btn orange" onClick={()=>{setPeriod('day'); setVersion('premium'); setTab('psych');}}>Ajuste psicológico Premium</button>
+            <label className="chip" onClick={()=>toggleFlow('s5')}><input type="checkbox" checked={flowChecks.s5} readOnly /> Paso 5 hecho</label>
+          </div>
+        </div>
+
+        {/* PASO 6 */}
+        <div className="card" style={{background:'#ecfdf5', borderColor:'#059669'}}>
+          <h3 style={{color:'#065f46'}}>Paso 6 — Coherencia Std vs Prem (Diario)</h3>
+          <div className="explain green">
+            <strong>Chequeo:</strong> la brecha <em>Premium − Estándar</em> debería ser ≥ €20 para evitar canibalización y justificar la diferencia perceptual (ducha, A/C, solar, menaje extra). Ahora mismo la brecha es <strong>€{ourPrices.day.premium - ourPrices.day.standard}</strong>.
+            <br/><strong>Pregunta clave:</strong> ¿la diferencia de precio refleja la diferencia real de prestaciones? ¿Un cliente DAP €80 subiría a €{ourPrices.day.premium} si le explicas qué incluye el Premium?
+          </div>
+          <div className="grid-3" style={{marginTop:10}}>
+            <KPI label="Std / Día" value={`€${ourPrices.day.standard}`} color="blue" />
+            <KPI label="Prem / Día" value={`€${ourPrices.day.premium}`} color="orange" />
+            <KPI label="Brecha Prem − Std" value={`€${ourPrices.day.premium - ourPrices.day.standard}`} color={(ourPrices.day.premium - ourPrices.day.standard) >= 20 ? 'green' : 'red'} />
+          </div>
+          <div className="row" style={{marginTop:8}}>
+            <button className="btn" onClick={()=>setTab('position')}>Ver en "Posición y precios"</button>
+            <label className="chip" onClick={()=>toggleFlow('s6')}><input type="checkbox" checked={flowChecks.s6} readOnly /> Paso 6 hecho</label>
+          </div>
+        </div>
+
+        {/* PASO 7 */}
+        <div className="card">
+          <h3 style={{color:'#7c3aed'}}>Paso 7 — Extrapola a Fin de semana y Semana</h3>
+          <div className="explain purple">
+            <strong>Qué hacer:</strong> con el diario fijado, aplica las normas del sector — <em>fin de semana ≈ −5 % por día</em> (2 noches), <em>semana ≈ −30 % por día</em> (6 noches). Esto da un sandwich 2×3 coherente.
+            <br/>Partiendo de tu diario actual: Std fin de semana ≈ <strong>€{Math.round(ourPrices.day.standard * 0.95)}/día</strong>, Std semana ≈ <strong>€{Math.round(ourPrices.day.standard * 0.70)}/día</strong>; Prem fin de semana ≈ <strong>€{Math.round(ourPrices.day.premium * 0.95)}/día</strong>, Prem semana ≈ <strong>€{Math.round(ourPrices.day.premium * 0.70)}/día</strong>.
+            <br/><strong>Pregunta clave:</strong> ¿los precios resultantes respetan el "sandwich" en todos los periodos? ¿La curva diario → finde → semana cae de forma coherente?
+          </div>
+          <div className="row" style={{marginTop:8}}>
+            <button className="btn primary" onClick={()=>setTab('position')}>Abrir "Posición y precios"</button>
+            <button className="btn" onClick={()=>setOurPrices(prev => ({
+              ...prev,
+              weekend: { standard: Math.round(prev.day.standard * 0.95), premium: Math.round(prev.day.premium * 0.95) },
+              week:    { standard: Math.round(prev.day.standard * 0.70), premium: Math.round(prev.day.premium * 0.70) }
+            }))}>Aplicar −5 %/día y −30 %/día automáticamente</button>
+            <label className="chip" onClick={()=>toggleFlow('s7')}><input type="checkbox" checked={flowChecks.s7} readOnly /> Paso 7 hecho</label>
+          </div>
+        </div>
+
+        {/* PASO 8 */}
+        <div className="card" style={{background:'#fff7ed', borderColor:'#f97316'}}>
+          <h3 style={{color:'#9a3412'}}>Paso 8 — Conclusión global y coherencia 2×3</h3>
+          <div className="explain orange">
+            <strong>Qué revisar:</strong> la tabla completa Std/Prem × Día/Finde/Semana. ¿Cada precio tiene justificación? ¿La historia conecta datos + posicionamiento + curva + psicología + estándares del sector?
+            <br/><strong>Acción:</strong> en <em>Posición y precios</em> añade la <em>nota del analista</em> con el resumen de tu lógica — esa nota viaja al PDF.
+          </div>
+          <table style={{marginTop:10}}>
+            <thead><tr><th>Periodo</th><th>Estándar (€)</th><th>Premium (€)</th><th>Brecha</th></tr></thead>
+            <tbody>
+              {PERIODS.map(p => (
+                <tr key={p.k}>
+                  <td>{p.label}</td>
+                  <td>€{ourPrices[p.k].standard}</td>
+                  <td>€{ourPrices[p.k].premium}</td>
+                  <td style={{color: (ourPrices[p.k].premium - ourPrices[p.k].standard) >= 15 ? '#059669' : '#dc2626', fontWeight:600}}>
+                    +€{ourPrices[p.k].premium - ourPrices[p.k].standard}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="row" style={{marginTop:8}}>
+            <button className="btn orange" onClick={()=>setTab('position')}>Revisar en "Posición y precios"</button>
+            <label className="chip" onClick={()=>toggleFlow('s8')}><input type="checkbox" checked={flowChecks.s8} readOnly /> Paso 8 hecho</label>
+          </div>
+        </div>
+
+        {/* PASO 9 */}
+        <div className="card" style={{background:'#f5f3ff', borderColor:'#7c3aed'}}>
+          <h3 style={{color:'#5b21b6'}}>Paso 9 — Entregable (PDF para Blackboard)</h3>
+          <div className="explain purple">
+            <strong>Qué hacer:</strong> responde las 4 preguntas del caso en la pestaña <em>Respuestas del caso</em>. Luego ve a <em>Entregable PDF</em>, rellena nombre + grupo y descarga el PDF. Súbelo a la tarea en Blackboard.
+            <br/>El PDF incluye: contexto del caso, tu tabla de precios 2×3, KPIs, tus respuestas a las 4 preguntas formales y tu nota del analista.
+          </div>
+          <div className="row" style={{marginTop:8}}>
+            <button className="btn primary" onClick={()=>setTab('answers')}>Responder las 4 preguntas</button>
+            <button className="btn" style={{background:'#7c3aed', color:'#fff', borderColor:'#7c3aed'}} onClick={()=>setTab('deliver')}>Ir a "Entregable PDF"</button>
+            <label className="chip" onClick={()=>toggleFlow('s9')}><input type="checkbox" checked={flowChecks.s9} readOnly /> Paso 9 hecho</label>
+          </div>
+        </div>
+      </>)}
 
       {/* ----- Pestaña: Cómo usarlo ----- */}
       {tab==='guide' && (<>
@@ -1554,6 +1897,71 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ----- Pestaña: Entregable PDF (para Blackboard) ----- */}
+      {tab==='deliver' && (
+        <>
+          <div className="card" style={{background:'#f5f3ff', borderColor:'#7c3aed'}}>
+            <h2 style={{color:'#5b21b6'}}>📄 Entregable PDF — subir a Blackboard</h2>
+            <p className="note" style={{color:'#5b21b6'}}>
+              Rellena tu nombre y grupo, revisa que la <em>Nota del analista</em> y las <em>4 respuestas del caso</em> estén completas, y descarga el PDF. Ese fichero es el entregable que subes a la tarea de Blackboard.
+            </p>
+          </div>
+
+          <div className="card">
+            <h3>Datos del alumno</h3>
+            <div className="grid-2">
+              <div>
+                <label>Nombre y apellidos</label>
+                <input type="text" value={student.name} onChange={e=>setStudent({...student, name:e.target.value})} placeholder="ej. María García López"/>
+              </div>
+              <div>
+                <label>Grupo / curso</label>
+                <input type="text" value={student.group} onChange={e=>setStudent({...student, group:e.target.value})} placeholder="ej. 3º Grado Marketing · Grupo B"/>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <h3>Checklist antes de descargar</h3>
+            <div className="grid-2">
+              <div className="box-soft">
+                <h4 style={{margin:'0 0 6px'}}>Precios finales</h4>
+                <table style={{fontSize:'.85rem'}}>
+                  <thead><tr><th>Periodo</th><th>Std</th><th>Prem</th></tr></thead>
+                  <tbody>
+                    {PERIODS.map(p => (
+                      <tr key={p.k}><td>{p.label}</td><td>€{ourPrices[p.k].standard}</td><td>€{ourPrices[p.k].premium}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="box-soft">
+                <h4 style={{margin:'0 0 6px'}}>Completitud</h4>
+                <ul style={{margin:'4px 0 0 18px', padding:0, fontSize:'.88rem', lineHeight:1.7}}>
+                  <li>Nombre: {student.name ? '✔' : '✗ falta'}</li>
+                  <li>Grupo: {student.group ? '✔' : '✗ falta'}</li>
+                  <li>Nota del analista: {positionNote ? '✔' : '✗ falta (pestaña Posición y precios)'}</li>
+                  <li>Respuesta Q1: {caseAnswers.q1 ? `✔ (${caseAnswers.q1.length} car.)` : '✗ falta'}</li>
+                  <li>Respuesta Q2: {caseAnswers.q2 ? `✔ (${caseAnswers.q2.length} car.)` : '✗ falta'}</li>
+                  <li>Respuesta Q3: {caseAnswers.q3 ? `✔ (${caseAnswers.q3.length} car.)` : '✗ falta'}</li>
+                  <li>Respuesta Q4: {caseAnswers.q4 ? `✔ (${caseAnswers.q4.length} car.)` : '✗ falta'}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="card" style={{background:'#ecfdf5', borderColor:'#059669'}}>
+            <h3 style={{color:'#065f46'}}>Descargar el PDF</h3>
+            <p className="note" style={{color:'#065f46'}}>Formato A4, varias páginas: portada con tus datos, contexto del caso, tabla 2×3 de precios, comparación con la competencia, KPIs, nota del analista y las 4 respuestas formales.</p>
+            <button className="btn" style={{background:'#7c3aed', color:'#fff', borderColor:'#7c3aed'}} onClick={buildPDF} disabled={pdfBuilding}>
+              {pdfBuilding ? 'Generando…' : '📄 Descargar PDF (entregable)'}
+            </button>
+            {pdfStatus && <div className={`status ${pdfStatus.kind==='err'?'err':pdfStatus.kind==='ok'?'ok':''}`} style={{marginLeft:10}}>{pdfStatus.text}</div>}
+            <p className="hint" style={{marginTop:10}}>Si falta alguna respuesta o la nota del analista, el PDF se genera igualmente pero esas secciones aparecerán como "(sin respuesta)" o "(sin nota)".</p>
+          </div>
+        </>
       )}
 
       {/* Gráficos offscreen — la fuente de las capturas PNG que se incluyen en el Excel */}
